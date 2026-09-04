@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Booking } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
 
 type LeadOption = { id: string; name: string };
 type UnitOption = { id: string; name: string; code: string };
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +30,7 @@ type FormData = {
 };
 
 export default function BookingsPage() {
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [leads, setLeads] = useState<LeadOption[]>([]);
@@ -41,23 +44,45 @@ export default function BookingsPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchBookings = useCallback(async () => {
+    if (!user) return;
+
     setLoading(true);
-    let query = supabase.from('bookings').select('*, leads(*), units(*)').order('booking_date', { ascending: false });
+    let query = supabase
+      .from('bookings')
+      .select('*, leads(*), units(*)')
+      .eq('user_id', user.id)
+      .order('booking_date', { ascending: false });
+      
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     const { data, error } = await query;
+    
     if (error) {
       toast({ title: 'Failed to load bookings', description: error.message, variant: 'destructive' });
     } else {
       setBookings(data ?? []);
     }
     setLoading(false);
-  }, [statusFilter, toast]);
+  }, [statusFilter, toast, user]);
 
   useEffect(() => {
+    if (!authLoading && !user) return;
+    
     fetchBookings();
-    supabase.from('leads').select('id, name').then(({ data }) => setLeads(data ?? []));
-    supabase.from('units').select('id, name, code').then(({ data }) => setUnits(data ?? []));
-  }, [fetchBookings]);
+    
+    if (user) {
+      supabase
+        .from('leads')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .then(({ data }) => setLeads(data ?? []));
+      
+      supabase
+        .from('units')
+        .select('id, name, code')
+        .eq('user_id', user.id)
+        .then(({ data }) => setUnits(data ?? []));
+    }
+  }, [fetchBookings, authLoading, user]);
 
   const filtered = bookings.filter((b) => {
     if (!search) return true;
@@ -89,30 +114,61 @@ export default function BookingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
     setSaving(true);
     const payload = {
+      user_id: user.id,
       lead_id: form.lead_id || null,
       unit_id: form.unit_id || null,
       booking_date: form.booking_date,
       status: form.status,
       amount: Number(form.amount) || 0,
     };
+    
     if (editingId) {
-      const { error } = await supabase.from('bookings').update(payload).eq('id', editingId);
-      if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-      else { toast({ title: 'Booking updated' }); setDialogOpen(false); fetchBookings(); }
+      const { error } = await supabase
+        .from('bookings')
+        .update(payload)
+        .eq('id', editingId)
+        .eq('user_id', user.id);
+        
+      if (error) {
+        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Booking updated' });
+        setDialogOpen(false);
+        fetchBookings();
+      }
     } else {
       const { error } = await supabase.from('bookings').insert(payload);
-      if (error) toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
-      else { toast({ title: 'Booking created' }); setDialogOpen(false); fetchBookings(); }
+      
+      if (error) {
+        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Booking created' });
+        setDialogOpen(false);
+        fetchBookings();
+      }
     }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('bookings').delete().eq('id', id);
-    if (error) toast({ title: 'Delete failed', variant: 'destructive' });
-    else { toast({ title: 'Booking deleted' }); fetchBookings(); }
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+      
+    if (error) {
+      toast({ title: 'Delete failed', variant: 'destructive' });
+    } else {
+      toast({ title: 'Booking deleted' });
+      fetchBookings();
+    }
   };
 
   return (
@@ -128,13 +184,24 @@ export default function BookingsPage() {
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by lead or unit..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Search by lead or unit..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            {bookingStatuses.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+            {bookingStatuses.map((s) => (
+              <SelectItem key={s} value={s} className="capitalize">
+                {s}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -142,7 +209,9 @@ export default function BookingsPage() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <CalendarCheck className="w-10 h-10 text-muted-foreground/50 mb-3" />
@@ -165,18 +234,35 @@ export default function BookingsPage() {
                   {filtered.map((b) => (
                     <TableRow key={b.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium">{b.leads?.name ?? '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell">{b.units ? `${b.units.name} (${b.units.code})` : '—'}</TableCell>
-                      <TableCell className="text-sm">{new Date(b.booking_date).toLocaleDateString()}</TableCell>
-                      <TableCell><StatusBadge status={b.status} /></TableCell>
-                      <TableCell className="font-semibold">${Number(b.amount).toLocaleString()}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {b.units ? `${b.units.name} (${b.units.code})` : '—'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(b.booking_date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={b.status} />
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        ${Number(b.amount).toLocaleString()}
+                      </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(b)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(b.id)} className="text-destructive focus:text-destructive"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(b)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(b.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -191,48 +277,86 @@ export default function BookingsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editingId ? 'Edit Booking' : 'Add New Booking'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Edit Booking' : 'Add New Booking'}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
               <Label>Lead</Label>
               <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select lead" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select lead" />
+                </SelectTrigger>
                 <SelectContent>
-                  {leads.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                  {leads.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Unit</Label>
               <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
                 <SelectContent>
-                  {units.map((u) => <SelectItem key={u.id} value={u.id}>{u.name} ({u.code})</SelectItem>)}
+                  {units.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name} ({u.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Booking Date *</Label>
-                <Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} required />
+                <Input
+                  type="date"
+                  value={form.booking_date}
+                  onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label>Amount</Label>
-                <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="0.00"
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {bookingStatuses.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                  {bookingStatuses.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <DialogFooter>
-              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-              <Button type="submit" disabled={saving}>{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{editingId ? 'Update' : 'Create'}</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingId ? 'Update' : 'Create'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
