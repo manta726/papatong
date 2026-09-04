@@ -45,47 +45,47 @@ export default function DashboardPage() {
 
   // Fetch data only if authenticated
   useEffect(() => {
-    // Early return if user is not authenticated
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    // Only run if we have a user
+    if (!user) return;
 
-    async function fetchAll() {
+    // Define fetchAll inside so it can access user
+    const fetchAll = async () => {
       try {
         setError(null);
         setLoading(true);
 
-        // Now we can safely use user.id since we checked user exists
+        // userId is guaranteed to exist here due to user check above
+        const userId = user.id;
+
         const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] = await Promise.all([
           supabase
             .from('leads')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(100),
           supabase
             .from('bookings')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(100),
           supabase
             .from('units')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(100),
           supabase
             .from('tasks')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(100),
           supabase
             .from('expenses')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('date', { ascending: false })
             .limit(100),
         ]);
@@ -116,8 +116,9 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    }
+    };
 
+    // Call the function
     fetchAll();
   }, [user, toast]);
 
