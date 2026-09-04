@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/supabase/auth-context';  // ✅ ADD
 import { supabase, Task } from '@/lib/supabase/client';
 
 type LeadOption = { id: string; name: string };
@@ -31,6 +32,7 @@ type FormData = {
 const emptyForm: FormData = { title: '', description: '', status: 'todo', priority: 'medium', due_date: '', related_lead_id: '' };
 
 export default function TasksPage() {
+  const { user, loading: authLoading } = useAuth();  // ✅ ADD
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<LeadOption[]>([]);
@@ -41,17 +43,31 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchTasks = useCallback(async () => {
+    if (!user) return;  // ✅ ADD
+
     setLoading(true);
-    const { data, error } = await supabase.from('tasks').select('*, leads(*)').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*, leads(*)')
+      .eq('user_id', user.id)  // ✅ ADD
+      .order('created_at', { ascending: false });
     if (error) toast({ title: 'Failed to load tasks', description: error.message, variant: 'destructive' });
     else setTasks(data ?? []);
     setLoading(false);
-  }, [toast]);
+  }, [toast, user]);  // ✅ ADD user
 
   useEffect(() => {
+    if (!authLoading && !user) return;  // ✅ ADD
+
     fetchTasks();
-    supabase.from('leads').select('id, name').then(({ data }) => setLeads(data ?? []));
-  }, [fetchTasks]);
+    if (user) {
+      supabase
+        .from('leads')
+        .select('id, name')
+        .eq('user_id', user.id)  // ✅ ADD
+        .then(({ data }) => setLeads(data ?? []));
+    }
+  }, [fetchTasks, authLoading, user]);  // ✅ UPDATE
 
   const columns = [
     { id: 'todo', title: 'To Do' },
@@ -74,8 +90,11 @@ export default function TasksPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;  // ✅ ADD
+
     setSaving(true);
     const payload = {
+      user_id: user.id,  // ✅ ADD
       title: form.title,
       description: form.description || null,
       status: form.status,
@@ -84,7 +103,11 @@ export default function TasksPage() {
       related_lead_id: form.related_lead_id || null,
     };
     if (editingId) {
-      const { error } = await supabase.from('tasks').update(payload).eq('id', editingId);
+      const { error } = await supabase
+        .from('tasks')
+        .update(payload)
+        .eq('id', editingId)
+        .eq('user_id', user.id);  // ✅ ADD for security
       if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       else { toast({ title: 'Task updated' }); setDialogOpen(false); fetchTasks(); }
     } else {
@@ -96,13 +119,25 @@ export default function TasksPage() {
   };
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
-    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+    if (!user) return;  // ✅ ADD
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', taskId)
+      .eq('user_id', user.id);  // ✅ ADD for security
     if (error) toast({ title: 'Update failed', variant: 'destructive' });
     else fetchTasks();
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (!user) return;  // ✅ ADD
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);  // ✅ ADD for security
     if (error) toast({ title: 'Delete failed', variant: 'destructive' });
     else { toast({ title: 'Task deleted' }); fetchTasks(); }
   };
