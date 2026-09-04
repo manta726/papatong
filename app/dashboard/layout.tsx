@@ -2,17 +2,29 @@
 
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Topbar } from '@/components/dashboard/topbar';
-import { AuthGuard } from '@/components/auth/auth-guard';
+import { AuthGuard } from '@/components/auth-guard';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen overflow-hidden bg-background">
+        {/* Sidebar */}
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Topbar */}
           <Topbar />
-          <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">
-            <div className="animate-fade-in">{children}</div>
+
+          {/* Page Content */}
+          <main className="flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+              <div className="animate-fade-in">{children}</div>
+            </div>
           </main>
         </div>
       </div>
