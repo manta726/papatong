@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
+  // Jangan pre-render pages yang perlu auth
+  typescript: {
+    ignoreBuildErrors: false,
   },
-  images: { unoptimized: true },
 };
 
 module.exports = nextConfig;
