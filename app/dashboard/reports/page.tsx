@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/supabase/auth-context';  // ✅ ADD
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/dashboard/stats-card';
-import { Users, CalendarCheck, Building2, Wallet, TrendingUp, Target } from 'lucide-react';
+import { Users, CalendarCheck, Building2, Wallet, TrendingUp, Target, Loader2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart,
@@ -21,17 +22,20 @@ type ReportData = {
 const pieColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function ReportsPage() {
+  const { user } = useAuth();  // ✅ ADD
   const [data, setData] = useState<ReportData>({ leads: [], bookings: [], units: [], tasks: [], expenses: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
+      if (!user) return;  // ✅ ADD
+
       const [leads, bookings, units, tasks, expenses] = await Promise.all([
-        supabase.from('leads').select('*'),
-        supabase.from('bookings').select('*'),
-        supabase.from('units').select('*'),
-        supabase.from('tasks').select('*'),
-        supabase.from('expenses').select('*'),
+        supabase.from('leads').select('*').eq('user_id', user.id),  // ✅ ADD filter
+        supabase.from('bookings').select('*').eq('user_id', user.id),  // ✅ ADD filter
+        supabase.from('units').select('*').eq('user_id', user.id),  // ✅ ADD filter
+        supabase.from('tasks').select('*').eq('user_id', user.id),  // ✅ ADD filter
+        supabase.from('expenses').select('*').eq('user_id', user.id),  // ✅ ADD filter
       ]);
       setData({
         leads: leads.data ?? [], bookings: bookings.data ?? [], units: units.data ?? [],
@@ -40,10 +44,17 @@ export default function ReportsPage() {
       setLoading(false);
     }
     fetchAll();
-  }, []);
+  }, [user]);  // ✅ ADD user
 
   if (loading) {
-    return <div className="flex items-center justify-center py-16 text-muted-foreground">Loading reports...</div>;
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading reports...</p>
+        </div>
+      </div>
+    );
   }
 
   const totalRevenue = data.bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + Number(b.amount), 0);
