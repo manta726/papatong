@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/supabase/auth-context';  // ✅ ADD
 import { supabase, Unit } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ type FormData = {
 const emptyForm: FormData = { name: '', code: '', type: 'studio', status: 'available', price: '', location: '', description: '' };
 
 export default function UnitsPage() {
+  const { user, loading: authLoading } = useAuth();  // ✅ ADD
   const { toast } = useToast();
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,16 +43,26 @@ export default function UnitsPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchUnits = useCallback(async () => {
+    if (!user) return;  // ✅ ADD
+
     setLoading(true);
-    let query = supabase.from('units').select('*').order('created_at', { ascending: false });
+    let query = supabase
+      .from('units')
+      .select('*')
+      .eq('user_id', user.id)  // ✅ ADD
+      .order('created_at', { ascending: false });
+      
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     const { data, error } = await query;
     if (error) toast({ title: 'Failed to load units', description: error.message, variant: 'destructive' });
     else setUnits(data ?? []);
     setLoading(false);
-  }, [statusFilter, toast]);
+  }, [statusFilter, toast, user]);  // ✅ ADD user
 
-  useEffect(() => { fetchUnits(); }, [fetchUnits]);
+  useEffect(() => {
+    if (!authLoading && !user) return;  // ✅ ADD
+    fetchUnits();
+  }, [fetchUnits, authLoading, user]);  // ✅ UPDATE
 
   const filtered = units.filter((u) => {
     if (!search) return true;
@@ -66,10 +78,20 @@ export default function UnitsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;  // ✅ ADD
+
     setSaving(true);
-    const payload = { ...form, price: Number(form.price) || 0 };
+    const payload = { 
+      ...form, 
+      user_id: user.id,  // ✅ ADD
+      price: Number(form.price) || 0 
+    };
     if (editingId) {
-      const { error } = await supabase.from('units').update(payload).eq('id', editingId);
+      const { error } = await supabase
+        .from('units')
+        .update(payload)
+        .eq('id', editingId)
+        .eq('user_id', user.id);  // ✅ ADD for security
       if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       else { toast({ title: 'Unit updated' }); setDialogOpen(false); fetchUnits(); }
     } else {
@@ -81,7 +103,13 @@ export default function UnitsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('units').delete().eq('id', id);
+    if (!user) return;  // ✅ ADD
+
+    const { error } = await supabase
+      .from('units')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);  // ✅ ADD for security
     if (error) toast({ title: 'Delete failed', variant: 'destructive' });
     else { toast({ title: 'Unit deleted' }); fetchUnits(); }
   };
