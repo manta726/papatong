@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const [data, setData] = useState<DashboardData>({
     leads: [],
     bookings: [],
@@ -45,13 +45,18 @@ export default function DashboardPage() {
 
   // Fetch data only if authenticated
   useEffect(() => {
-    if (!user) return;
+    // Early return if user is not authenticated
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     async function fetchAll() {
       try {
         setError(null);
         setLoading(true);
 
+        // Now we can safely use user.id since we checked user exists
         const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] = await Promise.all([
           supabase
             .from('leads')
