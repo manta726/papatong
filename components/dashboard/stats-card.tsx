@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/currency';
 import { LucideIcon } from 'lucide-react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -12,6 +13,7 @@ type StatsCardProps = {
   trend?: string;
   trendUp?: boolean;
   accent?: 'primary' | 'success' | 'warning' | 'destructive';
+  isCurrency?: boolean; // ✅ NEW
 };
 
 const accentClasses = {
@@ -28,19 +30,23 @@ export function StatsCard({
   trend,
   trendUp,
   accent = 'primary',
+  isCurrency = false, // ✅ NEW
 }: StatsCardProps) {
+  // ✅ Format as currency if needed
+  const displayValue = isCurrency ? formatCurrency(value) : value;
+
   return (
     <Card className="group hover:shadow-lg hover:border-primary/20 transition-all duration-300 border bg-gradient-to-br overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      
+
       <CardContent className="p-5 sm:p-6 relative">
         <div className="flex items-start justify-between">
           <div className="space-y-2 flex-1">
             <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wide">
               {label}
             </p>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{value}</h3>
-            
+            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayValue}</h3>
+
             {trend && (
               <div className="flex items-center gap-1 pt-1">
                 {trendUp ? (
