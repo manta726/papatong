@@ -13,7 +13,7 @@ type StatsCardProps = {
   trend?: string;
   trendUp?: boolean;
   accent?: 'primary' | 'success' | 'warning' | 'destructive';
-  isCurrency?: boolean; // ✅ NEW
+  isCurrency?: boolean;
 };
 
 const accentClasses = {
@@ -30,9 +30,8 @@ export function StatsCard({
   trend,
   trendUp,
   accent = 'primary',
-  isCurrency = false, // ✅ NEW
+  isCurrency = false,
 }: StatsCardProps) {
-  // ✅ Format as currency if needed
   const displayValue = isCurrency ? formatCurrency(value) : value;
 
   return (
