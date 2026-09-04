@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 type StatsCardProps = {
   label: string;
@@ -14,28 +15,58 @@ type StatsCardProps = {
 };
 
 const accentClasses = {
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  destructive: 'bg-destructive/10 text-destructive',
+  primary: 'from-primary/10 to-primary/5 text-primary border-primary/20',
+  success: 'from-success/10 to-success/5 text-success border-success/20',
+  warning: 'from-warning/10 to-warning/5 text-warning border-warning/20',
+  destructive: 'from-destructive/10 to-destructive/5 text-destructive border-destructive/20',
 };
 
-export function StatsCard({ label, value, icon: Icon, trend, trendUp, accent = 'primary' }: StatsCardProps) {
+export function StatsCard({
+  label,
+  value,
+  icon: Icon,
+  trend,
+  trendUp,
+  accent = 'primary',
+}: StatsCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
+    <Card className="group hover:shadow-lg hover:border-primary/20 transition-all duration-300 border bg-gradient-to-br overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      
+      <CardContent className="p-5 sm:p-6 relative">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground font-medium">{label}</p>
-            <p className="text-2xl font-bold tracking-tight mt-1">{value}</p>
+          <div className="space-y-2 flex-1">
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wide">
+              {label}
+            </p>
+            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{value}</h3>
+            
             {trend && (
-              <p className={cn('text-xs font-medium mt-2', trendUp ? 'text-success' : 'text-destructive')}>
-                {trend}
-              </p>
+              <div className="flex items-center gap-1 pt-1">
+                {trendUp ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-destructive" />
+                )}
+                <p
+                  className={cn(
+                    'text-xs font-semibold',
+                    trendUp ? 'text-success' : 'text-destructive'
+                  )}
+                >
+                  {trend}
+                </p>
+              </div>
             )}
           </div>
-          <div className={cn('flex items-center justify-center w-11 h-11 rounded-xl', accentClasses[accent])}>
-            <Icon className="w-5 h-5" />
+
+          <div
+            className={cn(
+              'flex items-center justify-center w-12 h-12 rounded-xl font-semibold shadow-md group-hover:shadow-lg transition-all group-hover:scale-110 bg-gradient-to-br',
+              accentClasses[accent]
+            )}
+          >
+            <Icon className="w-6 h-6" />
           </div>
         </div>
       </CardContent>
