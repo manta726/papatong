@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Booking } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
+import { formatCurrency } from '@/lib/currency';
 
 type LeadOption = { id: string; name: string };
 type UnitOption = { id: string; name: string; code: string };
@@ -52,10 +53,10 @@ export default function BookingsPage() {
       .select('*, leads(*), units(*)')
       .eq('user_id', user.id)
       .order('booking_date', { ascending: false });
-      
+
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     const { data, error } = await query;
-    
+
     if (error) {
       toast({ title: 'Failed to load bookings', description: error.message, variant: 'destructive' });
     } else {
@@ -66,16 +67,16 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (!authLoading && !user) return;
-    
+
     fetchBookings();
-    
+
     if (user) {
       supabase
         .from('leads')
         .select('id, name')
         .eq('user_id', user.id)
         .then(({ data }) => setLeads(data ?? []));
-      
+
       supabase
         .from('units')
         .select('id, name, code')
@@ -125,14 +126,14 @@ export default function BookingsPage() {
       status: form.status,
       amount: Number(form.amount) || 0,
     };
-    
+
     if (editingId) {
       const { error } = await supabase
         .from('bookings')
         .update(payload)
         .eq('id', editingId)
         .eq('user_id', user.id);
-        
+
       if (error) {
         toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       } else {
@@ -142,7 +143,7 @@ export default function BookingsPage() {
       }
     } else {
       const { error } = await supabase.from('bookings').insert(payload);
-      
+
       if (error) {
         toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
       } else {
@@ -162,7 +163,7 @@ export default function BookingsPage() {
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
-      
+
     if (error) {
       toast({ title: 'Delete failed', variant: 'destructive' });
     } else {
@@ -244,7 +245,7 @@ export default function BookingsPage() {
                         <StatusBadge status={b.status} />
                       </TableCell>
                       <TableCell className="font-semibold">
-                        ${Number(b.amount).toLocaleString()}
+                        {formatCurrency(b.amount)}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -325,10 +326,10 @@ export default function BookingsPage() {
                 <Label>Amount</Label>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             </div>
