@@ -18,7 +18,6 @@ export function formatCurrency(amount: number | string, showSymbol = true): stri
     maximumFractionDigits: 0,
   }).format(numAmount);
 
-  // Intl already includes "Rp" but we can customize if needed
   return formatted;
 }
 
