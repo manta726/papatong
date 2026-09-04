@@ -59,7 +59,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
         <div className="text-center space-y-6 mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20">
-            <span className="text-sm font-medium">✨ Modern CRM Solution</span>
+            <span className="text-sm font-medium">Modern CRM Solution</span>
           </div>
           
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
