@@ -15,8 +15,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, MoreHorizontal, Pencil, Trash2, Wallet, Loader2, TrendingDown, PiggyBank } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  Plus, MoreHorizontal, Pencil, Trash2,
+  Wallet, Loader2, TrendingDown, PiggyBank,
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
 
 const categories = ['advertising', 'events', 'materials', 'digital', 'salaries', 'other'];
 
@@ -28,12 +34,12 @@ type FormData = {
   date: string;
 };
 
-const emptyForm: FormData = { 
-  title: '', 
-  description: '', 
-  category: 'other', 
-  amount: '', 
-  date: new Date().toISOString().split('T')[0] 
+const emptyForm: FormData = {
+  title: '',
+  description: '',
+  category: 'other',
+  amount: '',
+  date: new Date().toISOString().split('T')[0],
 };
 
 const categoryColors: Record<string, string> = {
@@ -43,6 +49,14 @@ const categoryColors: Record<string, string> = {
   digital: 'hsl(var(--chart-4))',
   salaries: 'hsl(var(--chart-5))',
   other: 'hsl(var(--muted-foreground))',
+};
+
+// YAxis formatter singkat agar tidak terlalu panjang
+const yAxisFormatter = (value: number) => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(0)}M`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
+  return String(value);
 };
 
 export default function BudgetPage() {
@@ -67,8 +81,9 @@ export default function BudgetPage() {
       .order('date', { ascending: false });
 
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter);
+
     const { data, error } = await query;
-    
+
     if (error) {
       toast({ title: 'Failed to load expenses', description: error.message, variant: 'destructive' });
     } else {
@@ -82,20 +97,28 @@ export default function BudgetPage() {
     fetchExpenses();
   }, [fetchExpenses, authLoading, user]);
 
+  // Metrics
   const totalSpend = expenses.reduce((s, e) => s + Number(e.amount), 0);
+
   const thisMonth = new Date();
   const monthSpend = expenses
     .filter((e) => {
       const d = new Date(e.date);
-      return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear();
+      return (
+        d.getMonth() === thisMonth.getMonth() &&
+        d.getFullYear() === thisMonth.getFullYear()
+      );
     })
     .reduce((s, e) => s + Number(e.amount), 0);
+
   const avgSpend = expenses.length > 0 ? totalSpend / expenses.length : 0;
 
   const categoryTotals = categories
     .map((cat) => ({
       name: cat,
-      amount: expenses.filter((e) => e.category === cat).reduce((s, e) => s + Number(e.amount), 0),
+      amount: expenses
+        .filter((e) => e.category === cat)
+        .reduce((s, e) => s + Number(e.amount), 0),
     }))
     .filter((c) => c.amount > 0);
 
@@ -145,7 +168,7 @@ export default function BudgetPage() {
       }
     } else {
       const { error } = await supabase.from('expenses').insert(payload);
-      
+
       if (error) {
         toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
       } else {
@@ -176,6 +199,7 @@ export default function BudgetPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Budget & Expenses</h2>
@@ -186,42 +210,53 @@ export default function BudgetPage() {
         </Button>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
         <StatsCard
           label="Total Spend"
           value={totalSpend}
           icon={Wallet}
           accent="destructive"
-          isCurrency={true}
+          isCurrency
         />
         <StatsCard
           label="This Month"
           value={monthSpend}
           icon={TrendingDown}
           accent="warning"
-          isCurrency={true}
+          isCurrency
         />
         <StatsCard
           label="Avg per Entry"
           value={avgSpend}
           icon={PiggyBank}
           accent="primary"
-          isCurrency={true}
+          isCurrency
         />
       </div>
 
+      {/* Chart */}
       {categoryTotals.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Spend by Category</CardTitle>
-            <CardDescription>Breakdown of expenses</CardDescription>
+            <CardDescription>Breakdown of expenses per category</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={categoryTotals}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} className="capitalize" />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  className="capitalize"
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickFormatter={yAxisFormatter}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
@@ -229,11 +264,14 @@ export default function BudgetPage() {
                     borderRadius: '8px',
                     fontSize: '13px',
                   }}
-                  formatter={(v: number) => formatCurrency(v)}
+                  formatter={(value: number) => [formatCurrency(value), 'Jumlah']}
                 />
                 <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
                   {categoryTotals.map((entry, i) => (
-                    <Cell key={i} fill={categoryColors[entry.name] ?? 'hsl(var(--muted-foreground))'} />
+                    <Cell
+                      key={i}
+                      fill={categoryColors[entry.name] ?? 'hsl(var(--muted-foreground))'}
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -242,6 +280,7 @@ export default function BudgetPage() {
         </Card>
       )}
 
+      {/* Filter */}
       <div className="flex gap-3">
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[160px]">
@@ -258,6 +297,7 @@ export default function BudgetPage() {
         </Select>
       </div>
 
+      {/* Table */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -267,7 +307,9 @@ export default function BudgetPage() {
           ) : expenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Wallet className="w-10 h-10 text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">No expenses found. Add one to start tracking.</p>
+              <p className="text-sm text-muted-foreground">
+                No expenses found. Add one to start tracking.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -278,7 +320,7 @@ export default function BudgetPage() {
                     <TableHead>Category</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[50px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -287,17 +329,19 @@ export default function BudgetPage() {
                       <TableCell>
                         <p className="font-medium">{e.title}</p>
                         {e.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1">{e.description}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            {e.description}
+                          </p>
                         )}
                       </TableCell>
                       <TableCell>
                         <span className="capitalize text-sm">{e.category}</span>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(e.date).toLocaleDateString()}
+                        {new Date(e.date).toLocaleDateString('id-ID')}
                       </TableCell>
                       <TableCell className="font-semibold">
-                        {formatCurrency(e.amount)}
+                        {formatCurrency(Number(e.amount))}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -328,6 +372,7 @@ export default function BudgetPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog Form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -345,7 +390,10 @@ export default function BudgetPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <Select
+                  value={form.category}
+                  onValueChange={(v) => setForm({ ...form, category: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -359,10 +407,11 @@ export default function BudgetPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Amount *</Label>
+                <Label>Amount (Rp) *</Label>
                 <Input
                   type="number"
                   step="1"
+                  min="0"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   required
@@ -389,9 +438,7 @@ export default function BudgetPage() {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
+                <Button type="button" variant="outline">Cancel</Button>
               </DialogClose>
               <Button type="submit" disabled={saving}>
                 {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
