@@ -1,7 +1,6 @@
 'use client';
 
 import { Topbar } from '@/components/dashboard/topbar';
-import { Sidebar } from '@/components/dashboard/sidebar'; // ← Desktop sidebar di layout
 import { AuthGuard } from '@/components/auth/auth-guard';
 
 export default function DashboardLayout({
@@ -12,8 +11,9 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <div className="flex h-screen overflow-hidden bg-background">
-        {/* Desktop sidebar — hidden di mobile (sudah handle di dlm Sidebar) */}
-        <Sidebar />
+        {/* ❌ JANGAN render <Sidebar /> di sini!
+            Sidebar sudah di-render oleh Topbar (komponen Sidebar handle sendiri 
+            kapan tampil sebagai aside desktop / hamburger mobile via CSS breakpoints) */}
 
         <div className="flex-1 flex flex-col overflow-hidden w-full min-w-0">
           <Topbar />
