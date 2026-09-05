@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
-  LayoutDashboard, Users, CalendarCheck, Building2,
-  CheckSquare, BarChart3, Wallet, Settings, Building,
-  Menu, ChevronLeft, ChevronRight,
+  LayoutDashboard,
+  Users,
+  CalendarCheck,
+  Building2,
+  CheckSquare,
+  BarChart3,
+  Wallet,
+  Settings,
+  Building,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,7 +32,7 @@ const navItems = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
-// Hook untuk detect desktop (≥1024px)
+// Hook untuk detect desktop (>=1024px)
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -39,14 +49,13 @@ function useIsDesktop() {
 // Komponen nav items (dipakai desktop & mobile)
 function NavItems({
   collapsed,
+  pathname,
   onItemClick,
 }: {
   collapsed?: boolean;
+  pathname: string;
   onItemClick?: () => void;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
-
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
     return pathname.startsWith(href);
@@ -58,15 +67,14 @@ function NavItems({
         const Icon = item.icon;
         const active = isActive(item.href);
         return (
-          <button
+          <Link
             key={item.href}
-            type="button"
-            onClick={() => {
-              router.push(item.href);
-              onItemClick?.();
-            }}
+            href={item.href}
+            onClick={onItemClick}
+            prefetch={true}
             className={cn(
               'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               collapsed && 'justify-center px-2',
               active
                 ? 'bg-primary text-primary-foreground'
@@ -76,7 +84,7 @@ function NavItems({
           >
             <Icon className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="truncate">{item.label}</span>}
-          </button>
+          </Link>
         );
       })}
     </>
@@ -87,50 +95,58 @@ export function Sidebar() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isDesktop = useIsDesktop();
+  const pathname = usePathname();
 
   return (
     <>
-      {/* Desktop Sidebar — SELALU render, tapi hidden di mobile */}
+      {/* Desktop Sidebar - hidden di mobile, tampil di lg ke atas */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 h-screen',
+          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 h-screen relative z-10',
           collapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Logo */}
+        {/* Logo Section */}
         <div className="h-16 border-b border-border px-4 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={() => {/* navigasi via NavItems */}}
+          <Link
+            href="/dashboard"
             className="flex items-center gap-2.5 hover:opacity-80 transition-opacity min-w-0"
           >
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shrink-0">
               <Building className="w-5 h-5" />
             </div>
             {!collapsed && <span className="font-bold text-lg truncate">Papatong</span>}
-          </button>
+          </Link>
 
-          <button
+          {/* Collapse Toggle Button */}
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors shrink-0"
+            className="shrink-0"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </Button>
         </div>
 
-        {/* Nav */}
+        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          <NavItems collapsed={collapsed} />
+          <NavItems collapsed={collapsed} pathname={pathname} />
         </nav>
 
+        {/* Footer */}
         <div className="border-t border-border p-3 text-center text-xs text-muted-foreground shrink-0">
           {collapsed ? 'v1' : 'v1.0.0'}
         </div>
       </aside>
 
-      {/* Mobile Trigger — HANYA render jika BUKAN desktop (prevent Radix portal di desktop) */}
+      {/* Mobile Trigger - HANYA render jika BUKAN desktop (prevent Radix portal artifacts) */}
       {!isDesktop && (
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -138,6 +154,7 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               className="lg:hidden fixed top-3 left-3 z-50 shrink-0 bg-card border border-border shadow-sm"
+              aria-label="Toggle menu"
             >
               <Menu className="w-5 h-5" />
               <span className="sr-only">Toggle menu</span>
@@ -145,6 +162,7 @@ export function Sidebar() {
           </SheetTrigger>
 
           <SheetContent side="left" className="w-64 p-0">
+            {/* Mobile Header */}
             <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
                 <Building className="w-5 h-5" />
@@ -152,8 +170,9 @@ export function Sidebar() {
               <span className="font-bold text-lg">Papatong</span>
             </div>
 
+            {/* Mobile Navigation */}
             <nav className="p-3 space-y-1">
-              <NavItems onItemClick={() => setOpen(false)} />
+              <NavItems pathname={pathname} onItemClick={() => setOpen(false)} />
             </nav>
           </SheetContent>
         </Sheet>
