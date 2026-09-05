@@ -42,18 +42,9 @@ export function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  const handleNavClick = (e: React.MouseEvent, href: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Desktop nav clicked:', href);
+  const handleNavClick = (href: string) => {
+    console.log('Navigating to:', href);
     router.push(href);
-  };
-
-  const toggleCollapse = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Toggle clicked, current collapsed:', collapsed);
-    setCollapsed(!collapsed);
   };
 
   return (
@@ -61,114 +52,111 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 z-10',
+          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 relative',
           collapsed ? 'w-20' : 'w-64'
         )}
-        style={{ pointerEvents: 'auto' }} // ✅ FORCE ENABLE POINTER EVENTS
       >
         {/* Logo Section */}
-        <div className="flex items-center justify-between h-16 border-b border-border px-4 bg-card">
-          <div
-            onClick={(e) => handleNavClick(e, '/dashboard')}
-            className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
-            role="button"
-            tabIndex={0}
+        <div className="h-16 border-b border-border px-4 flex items-center justify-between shrink-0">
+          <button
+            onClick={() => handleNavClick('/dashboard')}
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           >
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
               <Building className="w-5 h-5" />
             </div>
             {!collapsed && <span className="font-bold text-lg">Papatong</span>}
-          </div>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleCollapse}
-            className="h-8 w-8 hover:bg-accent"
-            type="button"
+          {/* Collapse Button - Fixed Position */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn(
+              'flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors shrink-0',
+              collapsed && 'ml-0'
+            )}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+          </button>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 bg-card">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
 
             return (
-              <div
+              <button
                 key={item.href}
-                onClick={(e) => handleNavClick(e, item.href)}
+                onClick={() => handleNavClick(item.href)}
                 className={cn(
-                  'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer',
-                  collapsed && 'justify-center',
+                  'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  collapsed && 'justify-center px-2',
                   active
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
-                role="button"
-                tabIndex={0}
                 title={collapsed ? item.label : undefined}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </div>
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 text-center text-xs text-muted-foreground bg-card">
+        <div className="border-t border-border p-3 text-center text-xs text-muted-foreground shrink-0">
           {collapsed ? 'v1' : 'v1.0.0'}
         </div>
       </aside>
 
-      {/* Mobile Menu */}
-      <div className="lg:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="w-5 h-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
-            <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
-                <Building className="w-5 h-5" />
-              </div>
-              <span className="font-bold text-lg">Papatong</span>
+      {/* Mobile Menu Trigger */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="lg:hidden shrink-0">
+            <Menu className="w-5 h-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0">
+          {/* Mobile Header */}
+          <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
+              <Building className="w-5 h-5" />
             </div>
+            <span className="font-bold text-lg">Papatong</span>
+          </div>
 
-            <nav className="p-3 space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
+          {/* Mobile Navigation */}
+          <nav className="p-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
 
-                return (
-                  <button
-                    key={item.href}
-                    onClick={() => {
-                      router.push(item.href);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </SheetContent>
-        </Sheet>
-      </div>
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => {
+                    handleNavClick(item.href);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  )}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
