@@ -8,7 +8,7 @@ export function formatCurrency(amount: number | string, showSymbol = true): stri
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
 
   if (isNaN(numAmount)) {
-    return showSymbol ? 'Rp 0' : '0';
+    return showSymbol ? 'Rp 0' : '0'; 
   }
 
   const formatted = new Intl.NumberFormat('id-ID', {
