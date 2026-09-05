@@ -6,11 +6,15 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
 import { StatsCard } from '@/components/dashboard/stats-card';
+import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, CalendarCheck, Building2, CheckSquare, Wallet, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend,
+  Users, CalendarCheck, Building2, CheckSquare,
+  Wallet, TrendingUp, Loader2, AlertCircle,
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend,
 } from 'recharts';
 
 type DashboardData = {
@@ -36,61 +40,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Auth check - redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
 
-  // Fetch data only if authenticated
   useEffect(() => {
-    // Only run if we have a user
     if (!user) return;
 
-    // Define fetchAll inside so it can access user
     const fetchAll = async () => {
       try {
         setError(null);
         setLoading(true);
 
-        // userId is guaranteed to exist here due to user check above
         const userId = user.id;
 
         const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] = await Promise.all([
-          supabase
-            .from('leads')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(100),
-          supabase
-            .from('bookings')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(100),
-          supabase
-            .from('units')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(100),
-          supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(100),
-          supabase
-            .from('expenses')
-            .select('*')
-            .eq('user_id', userId)
-            .order('date', { ascending: false })
-            .limit(100),
+          supabase.from('leads').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+          supabase.from('bookings').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+          supabase.from('units').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+          supabase.from('tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+          supabase.from('expenses').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(100),
         ]);
 
-        // Check for errors
         if (leadsRes.error) throw new Error(`Leads: ${leadsRes.error.message}`);
         if (bookingsRes.error) throw new Error(`Bookings: ${bookingsRes.error.message}`);
         if (unitsRes.error) throw new Error(`Units: ${unitsRes.error.message}`);
@@ -107,22 +80,16 @@ export default function DashboardPage() {
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
         setError(message);
-        toast({
-          title: 'Error loading data',
-          description: message,
-          variant: 'destructive',
-        });
+        toast({ title: 'Error loading data', description: message, variant: 'destructive' });
         console.error('Dashboard data fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    // Call the function
     fetchAll();
   }, [user, toast]);
 
-  // Loading state
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -134,12 +101,13 @@ export default function DashboardPage() {
     );
   }
 
-  // Calculate metrics
+  // Metrics
   const totalRevenue = data.bookings
     .filter((b) => b.status === 'confirmed' || b.status === 'completed')
     .reduce((sum, b) => sum + Number(b.amount || 0), 0);
 
-  const totalExpenses = data.expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const totalExpenses = data.expenses
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const newLeads = data.leads.filter((l) => l.status === 'new').length;
   const qualifiedLeads = data.leads.filter((l) => l.status === 'qualified' || l.status === 'converted').length;
@@ -152,6 +120,7 @@ export default function DashboardPage() {
     return acc;
   }, {} as Record<string, number>);
   const sourceData = Object.entries(sourceCounts).map(([name, value]) => ({ name, value }));
+
   const pieColors = [
     'hsl(var(--chart-1))',
     'hsl(var(--chart-2))',
@@ -167,7 +136,7 @@ export default function DashboardPage() {
   }, {} as Record<string, number>);
   const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
-  // Revenue vs expenses trend (last 6 months)
+  // Revenue vs Expenses trend (last 6 months)
   const now = new Date();
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
@@ -200,12 +169,22 @@ export default function DashboardPage() {
     return { month: m.month, revenue: monthRevenue, expenses: monthExpenses };
   });
 
+  // YAxis formatter singkat
+  const yAxisFormatter = (value: number) => {
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(0)}M`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
+    return String(value);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
-        <p className="text-muted-foreground text-sm mt-1">Monitor your marketing operations at a glance</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Monitor your marketing operations at a glance
+        </p>
       </div>
 
       {/* Error Alert */}
@@ -221,7 +200,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Loading state */}
+      {/* Loading skeleton */}
       {loading ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -274,29 +253,31 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Revenue & Expenses cards */}
+          {/* Revenue & Expenses */}
           <div className="grid gap-4 sm:grid-cols-2">
             <StatsCard
               label="Total Revenue"
-              value={`$${totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+              value={totalRevenue}
               icon={TrendingUp}
               accent="success"
+              isCurrency
             />
             <StatsCard
               label="Total Expenses"
-              value={`$${totalExpenses.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+              value={totalExpenses}
               icon={Wallet}
               accent="destructive"
+              isCurrency
             />
           </div>
 
           {/* Charts */}
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Revenue vs Expenses */}
+            {/* Revenue vs Expenses Area Chart */}
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Revenue vs Expenses</CardTitle>
-                <CardDescription>Last 6 months trend</CardDescription>
+                <CardDescription>Tren 6 bulan terakhir</CardDescription>
               </CardHeader>
               <CardContent>
                 {trendData.every((d) => d.revenue === 0 && d.expenses === 0) ? (
@@ -322,7 +303,11 @@ export default function DashboardPage() {
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                       />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickFormatter={yAxisFormatter}
+                      />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
@@ -330,6 +315,7 @@ export default function DashboardPage() {
                           borderRadius: '8px',
                           fontSize: '13px',
                         }}
+                        formatter={(value: number) => [formatCurrency(value), '']}
                       />
                       <Area
                         type="monotone"
@@ -354,7 +340,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Lead Sources */}
+            {/* Lead Sources Pie Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Lead Sources</CardTitle>
@@ -396,7 +382,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Lead Status */}
+            {/* Lead Status Bar Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Lead Status Breakdown</CardTitle>
@@ -441,7 +427,7 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Recent activity */}
+          {/* Recent Activity */}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -463,7 +449,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(lead.created_at).toLocaleDateString()}
+                        {new Date(lead.created_at).toLocaleDateString('id-ID')}
                       </span>
                     </div>
                   ))
@@ -495,7 +481,7 @@ export default function DashboardPage() {
                         </div>
                         {task.due_date && (
                           <span className="text-xs text-muted-foreground">
-                            {new Date(task.due_date).toLocaleDateString()}
+                            {new Date(task.due_date).toLocaleDateString('id-ID')}
                           </span>
                         )}
                       </div>
