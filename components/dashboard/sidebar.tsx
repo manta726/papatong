@@ -1,166 +1,166 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/supabase/auth-context';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowRight, Building2, BarChart3, Users, CheckCircle } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  LayoutDashboard,
+  Users,
+  CalendarCheck,
+  Building2,
+  CheckSquare,
+  BarChart3,
+  Wallet,
+  Settings,
+  Building,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
-export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+const navItems = [
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/dashboard/leads', label: 'Leads', icon: Users },
+  { href: '/dashboard/bookings', label: 'Bookings', icon: CalendarCheck },
+  { href: '/dashboard/units', label: 'Units', icon: Building2 },
+  { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare },
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/dashboard/budget', label: 'Budget', icon: Wallet },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+];
+
+// ✅ PASTIKAN ADA export DISINI
+export function Sidebar() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard');
-    }
-  }, [user, loading, router]);
+  const isActive = (href: string) => {
+    if (href === '/dashboard') return pathname === '/dashboard';
+    return pathname.startsWith(href);
+  };
 
-  if (!mounted || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
-  // If user is logged in, don't render anything (redirect happens above)
-  if (user) {
-    return null;
-  }
-
-  // Landing page for non-authenticated users
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Navigation */}
-      <nav className="border-b border-border/40 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="w-6 h-6" />
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={cn(
+          'hidden lg:flex flex-col border-r border-border bg-card/50 backdrop-blur-sm shrink-0 transition-all duration-300 relative',
+          collapsed ? 'w-[80px]' : 'w-64'
+        )}
+      >
+        {/* Logo Section */}
+        <div className="flex items-center justify-between h-16 border-b border-border px-4">
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20 group-hover:shadow-primary/30 transition-all">
+              <Building className="w-5 h-5" />
             </div>
-            <span className="font-bold text-lg">Papatong CRM</span>
-          </div>
-          <Button onClick={() => router.push('/login')} variant="default" size="sm">
-            Sign In
+            {!collapsed && (
+              <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Papatong
+              </span>
+            )}
+          </Link>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn('h-8 w-8 shrink-0', collapsed && 'ml-auto')}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
           </Button>
         </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
-        <div className="text-center space-y-6 mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20">
-            <span className="text-sm font-medium">Modern CRM Solution</span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-            Real Estate Marketing
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">
-              Management Made Simple
-            </span>
-          </h1>
+        {/* Navigation */}
+        <ScrollArea className="flex-1">
+          <nav className={cn('flex flex-col gap-2', collapsed ? 'px-2 py-4' : 'px-3 py-4')}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
 
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Streamline your real estate operations. Manage leads, bookings, units, and tasks all in one powerful platform.
-          </p>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group',
+                    collapsed && 'justify-center px-0',
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon className="w-5 h-5 transition-transform group-hover:scale-110 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+        </ScrollArea>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Button 
-              onClick={() => router.push('/login')} 
-              size="lg"
-              className="gap-2"
-            >
-              Get Started <ArrowRight className="w-4 h-4" />
-            </Button>
-            <Button 
-              onClick={() => router.push('/login')} 
-              variant="outline" 
-              size="lg"
-            >
-              Learn More
-            </Button>
-          </div>
+        {/* Footer */}
+        <div className="border-t border-border p-3 text-xs text-muted-foreground text-center">
+          {!collapsed ? <p>v1.0.0</p> : <p className="text-[10px]">v1</p>}
         </div>
+      </aside>
 
-        {/* Features Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
-          {[
-            {
-              icon: Users,
-              title: "Lead Management",
-              description: "Track and manage all your leads in one centralized location with status tracking."
-            },
-            {
-              icon: Building2,
-              title: "Unit Management",
-              description: "Keep detailed records of all your properties and their availability status."
-            },
-            {
-              icon: BarChart3,
-              title: "Analytics & Reports",
-              description: "Get insights into your sales pipeline with comprehensive analytics and reports."
-            },
-            {
-              icon: CheckCircle,
-              title: "Task Management",
-              description: "Stay organized with task tracking and priority management features."
-            },
-            {
-              icon: BarChart3,
-              title: "Booking System",
-              description: "Manage bookings and monitor revenue from one intuitive dashboard."
-            },
-            {
-              icon: BarChart3,
-              title: "Expense Tracking",
-              description: "Track all expenses and monitor your operational costs effectively."
-            },
-          ].map((feature, i) => (
-            <div key={i} className="p-6 rounded-lg border border-border/50 bg-card hover:border-primary/20 transition-colors">
-              <feature.icon className="w-8 h-8 text-primary mb-3" />
-              <h3 className="font-semibold mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
+      {/* Mobile Menu */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="lg:hidden">
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0 border-r border-border">
+          <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg">
+              <Building className="w-5 h-5" />
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="border-t border-border/40 bg-card/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center space-y-6">
-          <h2 className="text-3xl font-bold">Ready to transform your operations?</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Join thousands of real estate professionals using Papatong CRM to streamline their business.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Button 
-              onClick={() => router.push('/login')} 
-              size="lg"
-              className="gap-2"
-            >
-              Create Free Account <ArrowRight className="w-4 h-4" />
-            </Button>
+            <span className="font-bold text-lg tracking-tight">Papatong</span>
           </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-sm text-muted-foreground">
-            <p>© 2026 Papatong CRM. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+          <ScrollArea className="h-[calc(100vh-64px)]">
+            <nav className="flex flex-col gap-2 px-3 py-4">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
