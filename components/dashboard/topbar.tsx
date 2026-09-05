@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Sidebar } from '@/components/dashboard/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,18 +33,21 @@ export function Topbar() {
   };
 
   const initials = user?.email
-    ? user.email
-        .split('@')[0]
-        .slice(0, 2)
-        .toUpperCase()
+    ? user.email.split('@')[0].slice(0, 2).toUpperCase()
     : '??';
 
   return (
-    <header className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-      {/* Left Section */}
-      <div className="flex items-center gap-4 flex-1">
+    <header className="h-16 px-4 sm:px-6 lg:px-8 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between gap-4 shrink-0">
+      {/* Left Section - Mobile Menu + Search */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Mobile Menu Trigger */}
+        <div className="lg:hidden">
+          <Sidebar />
+        </div>
+
+        {/* Search Bar - Hidden on Mobile */}
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-          <Search className="w-4 h-4 text-muted-foreground" />
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <Input
             placeholder="Search..."
             className="h-9 bg-muted/50 border-0 placeholder:text-muted-foreground focus-visible:bg-background focus-visible:shadow-sm transition-all"
@@ -51,28 +55,25 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Right Section */}
-      <div className="flex items-center gap-3">
+      {/* Right Section - Notifications + User Menu */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative shrink-0">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
         </Button>
 
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2 px-2 sm:px-4 hover:bg-accent transition-colors"
-            >
-              <Avatar className="w-8 h-8">
+            <Button variant="ghost" className="flex items-center gap-2 px-2 sm:px-4 hover:bg-accent transition-colors shrink-0">
+              <Avatar className="w-8 h-8 shrink-0">
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-xs font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden sm:flex flex-col items-start text-xs">
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-foreground truncate max-w-[100px]">
                   {user?.email?.split('@')[0] ?? 'User'}
                 </span>
                 <span className="text-muted-foreground">Account</span>
@@ -82,7 +83,7 @@ export function Topbar() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="truncate text-sm font-normal">{user?.email}</span>
               </div>
               <span className="text-xs text-muted-foreground">Active Account</span>
