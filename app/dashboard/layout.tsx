@@ -2,7 +2,7 @@
 
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Topbar } from '@/components/dashboard/topbar';
-import { AuthGuard } from '@/components/auth/auth-guard';
+import { AuthGuard } from '@/components/auth-guard';
 
 export default function DashboardLayout({
   children,
@@ -12,18 +12,15 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <div className="flex h-screen overflow-hidden bg-background">
-        {/* Sidebar */}
+        {/* Sidebar - NO OVERLAY ON TOP */}
         <Sidebar />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Topbar */}
           <Topbar />
-
-          {/* Page Content */}
-          <main className="flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20">
+          <main className="flex-1 overflow-auto">
             <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-              <div className="animate-fade-in">{children}</div>
+              {children}
             </div>
           </main>
         </div>
