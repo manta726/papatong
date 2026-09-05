@@ -19,7 +19,6 @@ import {
   Settings,
   Building,
   Menu,
-  X,
   ChevronLeft,
 } from 'lucide-react';
 
@@ -116,8 +115,8 @@ export function Sidebar() {
         {/* Logo Section */}
         <div
           className={cn(
-            'flex items-center justify-between h-16 border-b border-border px-4 transition-all duration-300',
-            collapsed && 'flex-col gap-2'
+            'flex items-center h-16 border-b border-border px-4 transition-all duration-300',
+            collapsed ? 'justify-center' : 'justify-between'
           )}
         >
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
@@ -131,28 +130,41 @@ export function Sidebar() {
             )}
           </Link>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? (
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-            ) : (
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCollapsed(!collapsed)}
+            >
               <ChevronLeft className="w-4 h-4" />
-            )}
-          </Button>
+            </Button>
+          )}
+          
+          {collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 absolute right-2"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              <ChevronLeft className="w-4 h-4 rotate-180" />
+            </Button>
+          )}
         </div>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1">
-          {navContent}
-        </ScrollArea>
+        <ScrollArea className="flex-1">{navContent}</ScrollArea>
 
         {/* Footer */}
-        <div className={cn('border-t border-border p-3 text-xs text-muted-foreground text-center', collapsed && 'text-[10px]')}>
+        <div
+          className={cn(
+            'border-t border-border p-3 text-xs text-muted-foreground text-center',
+            collapsed && 'text-[10px]'
+          )}
+        >
           {!collapsed && <p>v1.0.0</p>}
+          {collapsed && <p>v1</p>}
         </div>
       </aside>
 
