@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency'; // ← TAMBAH
 
 type StatsCardProps = {
   label: string;
@@ -30,29 +31,34 @@ export function StatsCard({
   accent = 'primary',
   isCurrency = false,
 }: StatsCardProps) {
+  // ← TAMBAH: format value jika isCurrency
+  const displayValue = isCurrency ? formatCurrency(value as number) : value;
+
   return (
     <Card className="relative group hover:shadow-lg hover:border-primary/20 transition-all duration-300 border bg-gradient-to-br overflow-hidden">
-      {/* ✅ Tambah pointer-events-none supaya overlay tidak nangkep klik */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       <CardContent className="p-5 sm:p-6 relative">
         <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
+          <div className="space-y-2 flex-1 min-w-0">
             <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wide">
               {label}
             </p>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{value}</h3>
+            {/* ← GANTI value → displayValue */}
+            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              {displayValue}
+            </h3>
 
             {trend && (
               <div className="flex items-center gap-1 pt-1">
                 {trendUp ? (
-                  <TrendingUp className="w-4 h-4 text-success" />
+                  <TrendingUp className="w-4 h-4 text-success shrink-0" />
                 ) : (
-                  <TrendingDown className="w-4 h-4 text-destructive" />
+                  <TrendingDown className="w-4 h-4 text-destructive shrink-0" />
                 )}
                 <p
                   className={cn(
-                    'text-xs font-semibold',
+                    'text-xs font-semibold truncate',
                     trendUp ? 'text-success' : 'text-destructive'
                   )}
                 >
@@ -64,7 +70,7 @@ export function StatsCard({
 
           <div
             className={cn(
-              'flex items-center justify-center w-12 h-12 rounded-xl font-semibold shadow-md group-hover:shadow-lg transition-all group-hover:scale-110 bg-gradient-to-br',
+              'flex items-center justify-center w-12 h-12 rounded-xl font-semibold shadow-md group-hover:shadow-lg transition-all group-hover:scale-110 bg-gradient-to-br shrink-0 ml-3',
               accentClasses[accent]
             )}
           >
