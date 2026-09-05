@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Sidebar } from '@/components/dashboard/sidebar';
+import { Sidebar } from '@/components/dashboard/sidebar'; // ← Import biasa
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,14 +38,10 @@ export function Topbar() {
 
   return (
     <header className="h-16 px-4 sm:px-6 lg:px-8 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between gap-4 shrink-0">
-      {/* Left Section - Mobile Menu + Search */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        {/* Mobile Menu Trigger */}
-        <div className="lg:hidden">
-          <Sidebar />
-        </div>
+        {/* ✅ Cukup render SEKALI — Sidebar sendiri yg handle desktop/mobile */}
+        <Sidebar />
 
-        {/* Search Bar - Hidden on Mobile */}
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <Input
@@ -55,15 +51,12 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Right Section - Notifications + User Menu */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative shrink-0">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
         </Button>
 
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2 sm:px-4 hover:bg-accent transition-colors shrink-0">
@@ -88,31 +81,22 @@ export function Topbar() {
               </div>
               <span className="text-xs text-muted-foreground">Active Account</span>
             </DropdownMenuLabel>
-
             <DropdownMenuSeparator />
-
             <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </DropdownMenuItem>
-
             <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
               <User className="w-4 h-4 mr-2" />
               Profile
             </DropdownMenuItem>
-
             <DropdownMenuSeparator />
-
             <DropdownMenuItem
               onClick={handleSignOut}
               disabled={signingOut}
               className="text-destructive focus:text-destructive focus:bg-destructive/10"
             >
-              {signingOut ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <LogOut className="w-4 h-4 mr-2" />
-              )}
+              {signingOut ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogOut className="w-4 h-4 mr-2" />}
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
