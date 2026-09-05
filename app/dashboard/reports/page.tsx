@@ -1,14 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/supabase/auth-context';  // ✅ ADD
+import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
+import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { Users, CalendarCheck, Building2, Wallet, TrendingUp, Target, Loader2 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  LineChart,
+  Line,
 } from 'recharts';
 
 type ReportData = {
@@ -19,32 +31,48 @@ type ReportData = {
   expenses: Expense[];
 };
 
-const pieColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const pieColors = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
 
 export default function ReportsPage() {
-  const { user } = useAuth();  // ✅ ADD
-  const [data, setData] = useState<ReportData>({ leads: [], bookings: [], units: [], tasks: [], expenses: [] });
+  const { user } = useAuth();
+  const [data, setData] = useState<ReportData>({
+    leads: [],
+    bookings: [],
+    units: [],
+    tasks: [],
+    expenses: [],
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
-      if (!user) return;  // ✅ ADD
+      if (!user) return;
 
       const [leads, bookings, units, tasks, expenses] = await Promise.all([
-        supabase.from('leads').select('*').eq('user_id', user.id),  // ✅ ADD filter
-        supabase.from('bookings').select('*').eq('user_id', user.id),  // ✅ ADD filter
-        supabase.from('units').select('*').eq('user_id', user.id),  // ✅ ADD filter
-        supabase.from('tasks').select('*').eq('user_id', user.id),  // ✅ ADD filter
-        supabase.from('expenses').select('*').eq('user_id', user.id),  // ✅ ADD filter
+        supabase.from('leads').select('*').eq('user_id', user.id),
+        supabase.from('bookings').select('*').eq('user_id', user.id),
+        supabase.from('units').select('*').eq('user_id', user.id),
+        supabase.from('tasks').select('*').eq('user_id', user.id),
+        supabase.from('expenses').select('*').eq('user_id', user.id),
       ]);
+      
       setData({
-        leads: leads.data ?? [], bookings: bookings.data ?? [], units: units.data ?? [],
-        tasks: tasks.data ?? [], expenses: expenses.data ?? [],
+        leads: leads.data ?? [],
+        bookings: bookings.data ?? [],
+        units: units.data ?? [],
+        tasks: tasks.data ?? [],
+        expenses: expenses.data ?? [],
       });
       setLoading(false);
     }
     fetchAll();
-  }, [user]);  // ✅ ADD user
+  }, [user]);
 
   if (loading) {
     return (
@@ -57,18 +85,26 @@ export default function ReportsPage() {
     );
   }
 
-  const totalRevenue = data.bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + Number(b.amount), 0);
+  const totalRevenue = data.bookings
+    .filter((b) => b.status === 'confirmed' || b.status === 'completed')
+    .reduce((s, b) => s + Number(b.amount), 0);
   const totalExpenses = data.expenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = totalRevenue - totalExpenses;
-  const conversionRate = data.leads.length > 0 ? ((data.leads.filter(l => l.status === 'converted').length / data.leads.length) * 100).toFixed(1) : '0';
-  const avgBookingValue = data.bookings.length > 0 ? (totalRevenue / data.bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length).toFixed(0) : '0';
+  const conversionRate =
+    data.leads.length > 0
+      ? ((data.leads.filter((l) => l.status === 'converted').length / data.leads.length) * 100).toFixed(1)
+      : '0';
+  const avgBookingValue =
+    data.bookings.length > 0
+      ? totalRevenue / data.bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed').length
+      : 0;
 
   // Conversion funnel
   const funnelData = [
-    { stage: 'New', count: data.leads.filter(l => l.status === 'new').length },
-    { stage: 'Contacted', count: data.leads.filter(l => l.status === 'contacted').length },
-    { stage: 'Qualified', count: data.leads.filter(l => l.status === 'qualified').length },
-    { stage: 'Converted', count: data.leads.filter(l => l.status === 'converted').length },
+    { stage: 'New', count: data.leads.filter((l) => l.status === 'new').length },
+    { stage: 'Contacted', count: data.leads.filter((l) => l.status === 'contacted').length },
+    { stage: 'Qualified', count: data.leads.filter((l) => l.status === 'qualified').length },
+    { stage: 'Converted', count: data.leads.filter((l) => l.status === 'converted').length },
   ];
 
   // Expense by category
@@ -89,11 +125,21 @@ export default function ReportsPage() {
   const now = new Date();
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return { label: d.toLocaleString('default', { month: 'short' }), month: d.getMonth(), year: d.getFullYear() };
+    return {
+      label: d.toLocaleString('default', { month: 'short' }),
+      month: d.getMonth(),
+      year: d.getFullYear(),
+    };
   });
   const monthlyData = months.map((m) => {
-    const leads = data.leads.filter(l => { const d = new Date(l.created_at); return d.getMonth() === m.month && d.getFullYear() === m.year; }).length;
-    const bookings = data.bookings.filter(b => { const d = new Date(b.booking_date); return d.getMonth() === m.month && d.getFullYear() === m.year; }).length;
+    const leads = data.leads.filter((l) => {
+      const d = new Date(l.created_at);
+      return d.getMonth() === m.month && d.getFullYear() === m.year;
+    }).length;
+    const bookings = data.bookings.filter((b) => {
+      const d = new Date(b.booking_date);
+      return d.getMonth() === m.month && d.getFullYear() === m.year;
+    }).length;
     return { month: m.label, leads, bookings };
   });
 
@@ -101,22 +147,53 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Reports & Analytics</h2>
-        <p className="text-muted-foreground text-sm mt-1">Comprehensive view of your marketing performance</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Comprehensive view of your marketing performance
+        </p>
       </div>
 
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} icon={TrendingUp} accent="success" />
-        <StatsCard label="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={Wallet} accent="destructive" />
-        <StatsCard label="Net Profit" value={`$${netProfit.toLocaleString()}`} icon={Target} accent={netProfit >= 0 ? 'success' : 'destructive'} />
+        <StatsCard
+          label="Total Revenue"
+          value={totalRevenue}
+          icon={TrendingUp}
+          accent="success"
+          isCurrency={true}
+        />
+        <StatsCard
+          label="Total Expenses"
+          value={totalExpenses}
+          icon={Wallet}
+          accent="destructive"
+          isCurrency={true}
+        />
+        <StatsCard
+          label="Net Profit"
+          value={netProfit}
+          icon={Target}
+          accent={netProfit >= 0 ? 'success' : 'destructive'}
+          isCurrency={true}
+        />
         <StatsCard label="Conversion Rate" value={`${conversionRate}%`} icon={Users} accent="primary" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard label="Total Leads" value={data.leads.length} icon={Users} accent="primary" />
-        <StatsCard label="Total Bookings" value={data.bookings.length} icon={CalendarCheck} accent="success" />
+        <StatsCard
+          label="Total Bookings"
+          value={data.bookings.length}
+          icon={CalendarCheck}
+          accent="success"
+        />
         <StatsCard label="Total Units" value={data.units.length} icon={Building2} accent="warning" />
-        <StatsCard label="Avg Booking Value" value={`$${Number(avgBookingValue).toLocaleString()}`} icon={TrendingUp} accent="primary" />
+        <StatsCard
+          label="Avg Booking Value"
+          value={avgBookingValue}
+          icon={TrendingUp}
+          accent="primary"
+          isCurrency={true}
+        />
       </div>
 
       {/* Monthly trend */}
@@ -131,7 +208,14 @@ export default function ReportsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
-              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '13px' }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                }}
+              />
               <Legend />
               <Line type="monotone" dataKey="leads" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Leads" />
               <Line type="monotone" dataKey="bookings" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Bookings" />
@@ -148,15 +232,28 @@ export default function ReportsPage() {
             <CardDescription>Pipeline stages breakdown</CardDescription>
           </CardHeader>
           <CardContent>
-            {funnelData.every(d => d.count === 0) ? (
+            {funnelData.every((d) => d.count === 0) ? (
               <p className="text-sm text-muted-foreground text-center py-12">No lead data available</p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={funnelData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
-                  <YAxis dataKey="stage" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={80} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '13px' }} />
+                  <YAxis
+                    dataKey="stage"
+                    type="category"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    width={80}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                    }}
+                  />
                   <Bar dataKey="count" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} name="Leads" />
                 </BarChart>
               </ResponsiveContainer>
@@ -176,10 +273,28 @@ export default function ReportsPage() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
-                    {categoryData.map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
+                  <Pie
+                    data={categoryData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={40}
+                  >
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                    ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '13px' }} formatter={(v: number) => `$${v.toLocaleString()}`} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                    }}
+                    formatter={(v: number) => formatCurrency(v)}
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -201,9 +316,21 @@ export default function ReportsPage() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={unitStatusChart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} className="capitalize" />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  className="capitalize"
+                />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '13px' }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                  }}
+                />
                 <Bar dataKey="value" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} name="Units" />
               </BarChart>
             </ResponsiveContainer>
