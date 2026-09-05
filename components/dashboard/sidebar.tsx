@@ -35,14 +35,13 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar - hanya muncul di lg ke atas */}
+      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 relative',
+          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 h-screen',
           collapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Logo */}
         <div className="h-16 border-b border-border px-4 flex items-center justify-between shrink-0">
           <button
             onClick={() => router.push('/dashboard')}
@@ -63,7 +62,6 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -93,10 +91,14 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile Trigger - hanya muncul di <lg */}
+      {/* Mobile Trigger */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="lg:hidden shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden fixed top-3 left-3 z-50 shrink-0 bg-card border border-border shadow-sm"
+          >
             <Menu className="w-5 h-5" />
             <span className="sr-only">Toggle menu</span>
           </Button>
