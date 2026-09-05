@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Sidebar } from '@/components/dashboard/sidebar'; // ← Import biasa
+import { Sidebar } from '@/components/dashboard/sidebar'; // ← Import 1 component
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ export function Topbar() {
   return (
     <header className="h-16 px-4 sm:px-6 lg:px-8 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between gap-4 shrink-0">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        {/* ✅ Cukup render SEKALI — Sidebar sendiri yg handle desktop/mobile */}
+        {/* ✅ Sidebar di sini — handle desktop (lg:flex aside) + mobile (lg:hidden hamburger) */}
         <Sidebar />
 
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
