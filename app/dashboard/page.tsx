@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { formatCurrency } from '@/lib/currency';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare,
