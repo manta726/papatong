@@ -5,10 +5,6 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Booking } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { formatCurrency } from '@/lib/currency';
-
-type LeadOption = { id: string; name: string };
-type UnitOption = { id: string; name: string; code: string };
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, CalendarCheck, Loader2 } from 'lucide-react';
+
+type LeadOption = { id: string; name: string };
+type UnitOption = { id: string; name: string; code: string };
 
 const bookingStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
 
@@ -207,7 +206,7 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card>
+      <Card className="border-border/50">
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-16">
