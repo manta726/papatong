@@ -21,17 +21,17 @@ export type Lead = {
   source: string;
   status: string;
   unit_interest: string | null;
-  budget: string | null;
+  budget: number | null;  // ✅ Diubah dari string ke number
   notes: string | null;
   user_id: string;
-  
+
   // CRM Fields
   lead_score: number;
   lead_grade: 'HOT' | 'WARM' | 'COLD';
   assigned_to: string | null;
   contacted_at: string | null;
   last_follow_up_at: string | null;
-  
+
   created_at: string;
   updated_at: string;
 };
@@ -71,7 +71,6 @@ export type LeadScoreRule = {
   created_at: string;
 };
 
-// Keep existing types
 export type Unit = {
   id: string;
   name: string;
@@ -135,26 +134,26 @@ export type Expense = {
 export function calculateLeadScore(lead: Lead): number {
   let score = 0;
 
-  // Budget score (0-40)
-  if (lead.budget && (lead.budget.toLowerCase().includes('confirm') || lead.budget.includes('jt'))) {
-    score += 40;
-  } else if (lead.budget) {
-    score += 20;
+  // Budget score (0-40) - revisi untuk number
+  if (lead.budget && lead.budget > 0) {
+    if (lead.budget >= 1_000_000_000) score += 40;       // >= 1 Miliar
+    else if (lead.budget >= 500_000_000) score += 30;    // >= 500jt
+    else if (lead.budget >= 100_000_000) score += 20;    // >= 100jt
+    else score += 10;                                     // < 100jt
   }
 
-  // Timeline score (0-30)
-  if (lead.status === 'qualified') {
-    score += 30;
-  } else if (lead.status === 'contacted') {
-    score += 15;
-  }
+  // Status/Timeline score (0-30)
+  if (lead.status === 'qualified') score += 30;
+  else if (lead.status === 'contacted') score += 15;
 
   // Engagement score (0-20)
-  if (lead.contacted_at) {
-    score += 20;
+  if (lead.contacted_at) score += 20;
+
+  // Unit interest bonus (0-10)
+  if (lead.unit_interest && lead.unit_interest.trim() !== '') {
+    score += 10;
   }
 
-  // Cap at 100
   return Math.min(score, 100);
 }
 
@@ -190,7 +189,6 @@ export async function addFollowUpLog(
   followUp: Omit<FollowUpLog, 'id' | 'created_at'>,
   userId: string
 ) {
-  // Insert follow-up log
   const { data, error } = await supabase
     .from('follow_up_logs')
     .insert({ ...followUp, user_id: userId })
@@ -199,7 +197,6 @@ export async function addFollowUpLog(
 
   if (error) throw error;
 
-  // Update lead's last_follow_up_at and contacted_at
   await supabase
     .from('leads')
     .update({
@@ -288,17 +285,17 @@ export async function getLeadWithFollowUps(leadId: string, userId: string) {
  */
 export async function initializeDefaultScoringRules(userId: string) {
   const defaultRules = [
-    { category: 'budget', criterion: 'Budget confirmed', points: 40 },
-    { category: 'budget', criterion: 'Budget needs financing info', points: 20 },
-    { category: 'timeline', criterion: 'Buying within 1 month', points: 30 },
-    { category: 'timeline', criterion: 'Buying within 1-3 months', points: 15 },
-    { category: 'engagement', criterion: 'Already visited/surveyed', points: 20 },
-    { category: 'engagement', criterion: 'Asked detailed questions', points: 15 },
-    { category: 'engagement', criterion: 'Just initial inquiry', points: 0 },
+    { category: 'budget', criterion: 'Budget > 1 Miliar', points: 40 },
+    { category: 'budget', criterion: 'Budget 500jt - 1M', points: 30 },
+    { category: 'budget', criterion: 'Budget 100jt - 500jt', points: 20 },
+    { category: 'budget', criterion: 'Budget < 100jt', points: 10 },
+    { category: 'timeline', criterion: 'Status qualified', points: 30 },
+    { category: 'timeline', criterion: 'Status contacted', points: 15 },
+    { category: 'engagement', criterion: 'Sudah dihubungi', points: 20 },
+    { category: 'engagement', criterion: 'Ada unit interest', points: 10 },
   ];
 
   for (const rule of defaultRules) {
-    // Check if rule already exists
     const { data: existing } = await supabase
       .from('lead_score_rules')
       .select('id')
@@ -306,7 +303,6 @@ export async function initializeDefaultScoringRules(userId: string) {
       .eq('criterion', rule.criterion)
       .single();
 
-    // Only insert if doesn't exist
     if (!existing) {
       await supabase
         .from('lead_score_rules')
@@ -323,7 +319,6 @@ export async function initializeDefaultScoringRules(userId: string) {
  * Update lead score and grade
  */
 export async function updateLeadScore(leadId: string, userId: string) {
-  // Get the lead
   const { data: lead, error: fetchError } = await supabase
     .from('leads')
     .select('*')
@@ -333,11 +328,9 @@ export async function updateLeadScore(leadId: string, userId: string) {
 
   if (fetchError) throw fetchError;
 
-  // Calculate new score
   const newScore = calculateLeadScore(lead as Lead);
   const newGrade = getLeadGrade(newScore);
 
-  // Update lead
   const { error: updateError } = await supabase
     .from('leads')
     .update({
