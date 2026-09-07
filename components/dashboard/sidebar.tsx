@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -32,21 +32,44 @@ const navItems = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
-// Hook untuk detect desktop (>=1024px)
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsDesktop(window.innerWidth >= 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  return isDesktop;
+function NavItem({
+  item,
+  isActive,
+  collapsed,
+  onItemClick,
+}: {
+  item: (typeof navItems)[0];
+  isActive: boolean;
+  collapsed?: boolean;
+  onItemClick?: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onItemClick}
+      prefetch={true}
+      className={cn(
+        'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
+        'transition-all duration-200 ease-in-out',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        collapsed && 'justify-center px-2',
+        active
+          ? 'bg-primary text-primary-foreground shadow-md hover:shadow-lg'
+          : [
+              'text-sidebar-text hover:text-sidebar-text-active',
+              'hover:bg-sidebar-hover',
+              'dark:text-slate-300 dark:hover:bg-slate-800',
+            ]
+      )}
+      title={collapsed ? item.label : undefined}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      {!collapsed && <span className="truncate">{item.label}</span>}
+    </Link>
+  );
 }
 
-// Komponen nav items (dipakai desktop & mobile)
 function NavItems({
   collapsed,
   pathname,
@@ -61,32 +84,41 @@ function NavItems({
     return pathname.startsWith(href);
   };
 
+  const mainItems = navItems.slice(0, -1); // All except settings
+  const settingsItem = navItems.slice(-1); // Only settings
+
   return (
     <>
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const active = isActive(item.href);
-        return (
-          <Link
+      {/* Main Section */}
+      <div className="space-y-1">
+        {mainItems.map((item) => (
+          <NavItem
             key={item.href}
-            href={item.href}
-            onClick={onItemClick}
-            prefetch={true}
-            className={cn(
-              'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-              collapsed && 'justify-center px-2',
-              active
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            )}
-            title={collapsed ? item.label : undefined}
-          >
-            <Icon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="truncate">{item.label}</span>}
-          </Link>
-        );
-      })}
+            item={item}
+            isActive={isActive(item.href)}
+            collapsed={collapsed}
+            onItemClick={onItemClick}
+          />
+        ))}
+      </div>
+
+      {/* Settings Section */}
+      <div className="space-y-1 pt-2 border-t border-sidebar-border">
+        {!collapsed && (
+          <p className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Admin
+          </p>
+        )}
+        {settingsItem.map((item) => (
+          <NavItem
+            key={item.href}
+            item={item}
+            isActive={isActive(item.href)}
+            collapsed={collapsed}
+            onItemClick={onItemClick}
+          />
+        ))}
+      </div>
     </>
   );
 }
@@ -94,37 +126,57 @@ function NavItems({
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const isDesktop = useIsDesktop();
   const pathname = usePathname();
 
   return (
     <>
-      {/* Desktop Sidebar - hidden di mobile, tampil di lg ke atas */}
+      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 h-screen relative z-10',
+          'hidden lg:flex flex-col',
+          'border-r border-sidebar-border',
+          'bg-card shadow-sidebar',
+          'shrink-0 transition-all duration-300',
+          'h-screen relative z-10',
           collapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Logo Section */}
-        <div className="h-16 border-b border-border px-4 flex items-center justify-between shrink-0">
+        {/* Header */}
+        <div className={cn(
+          'h-16 border-b border-sidebar-border',
+          'px-4 flex items-center justify-between shrink-0',
+          'bg-gradient-to-r from-card to-card/50',
+          'transition-all duration-300'
+        )}>
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity min-w-0"
+            className={cn(
+              'flex items-center gap-2.5 hover:opacity-80',
+              'transition-all duration-200',
+              'min-w-0 group rounded-lg hover:bg-accent/50 px-2 py-1'
+            )}
           >
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shrink-0">
+            <div className={cn(
+              'flex items-center justify-center w-9 h-9 rounded-lg',
+              'bg-gradient-to-br from-primary to-primary/80',
+              'text-primary-foreground shrink-0',
+              'group-hover:shadow-md transition-shadow'
+            )}>
               <Building className="w-5 h-5" />
             </div>
-            {!collapsed && <span className="font-bold text-lg truncate">Papatong</span>}
+            {!collapsed && (
+              <span className="font-bold text-lg truncate group-hover:text-primary transition-colors">
+                Papatong
+              </span>
+            )}
           </Link>
 
-          {/* Collapse Toggle Button */}
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="shrink-0"
+            className="shrink-0 hover:bg-accent transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
@@ -136,47 +188,64 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin">
           <NavItems collapsed={collapsed} pathname={pathname} />
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 text-center text-xs text-muted-foreground shrink-0">
-          {collapsed ? 'v1' : 'v1.0.0'}
+        <div className={cn(
+          'border-t border-sidebar-border p-3',
+          'bg-gradient-to-t from-card/50 to-transparent',
+          'text-xs text-muted-foreground text-center shrink-0',
+          'transition-all duration-300'
+        )}>
+          {collapsed ? (
+            <span className="opacity-60">v1</span>
+          ) : (
+            <div className="space-y-0.5">
+              <p className="font-medium">Papatong</p>
+              <p className="text-muted-foreground/60">v1.0.0</p>
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* Mobile Trigger - HANYA render jika BUKAN desktop (prevent Radix portal artifacts) */}
-      {!isDesktop && (
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden fixed top-3 left-3 z-50 shrink-0 bg-card border border-border shadow-sm"
-              aria-label="Toggle menu"
-            >
-              <Menu className="w-5 h-5" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </SheetTrigger>
+      {/* Mobile Trigger */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden fixed top-3 left-3 z-50 shrink-0 bg-card border border-border shadow-sm hover:bg-accent transition-colors"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </SheetTrigger>
 
-          <SheetContent side="left" className="w-64 p-0">
-            {/* Mobile Header */}
-            <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
-                <Building className="w-5 h-5" />
-              </div>
-              <span className="font-bold text-lg">Papatong</span>
+        <SheetContent side="left" className="w-64 p-0">
+          {/* Mobile Header */}
+          <div className={cn(
+            'flex items-center gap-2.5 px-5 h-16',
+            'border-b border-sidebar-border'
+          )}>
+            <div className={cn(
+              'flex items-center justify-center w-9 h-9 rounded-lg',
+              'bg-gradient-to-br from-primary to-primary/80',
+              'text-primary-foreground'
+            )}>
+              <Building className="w-5 h-5" />
             </div>
+            <span className="font-bold text-lg">Papatong</span>
+          </div>
 
-            {/* Mobile Navigation */}
-            <nav className="p-3 space-y-1">
-              <NavItems pathname={pathname} onItemClick={() => setOpen(false)} />
-            </nav>
-          </SheetContent>
-        </Sheet>
-      )}
+          {/* Mobile Navigation */}
+          <nav className="p-3 space-y-1">
+            <NavItems pathname={pathname} onItemClick={() => setOpen(false)} />
+          </nav>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
