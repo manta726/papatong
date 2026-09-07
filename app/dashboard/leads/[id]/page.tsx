@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { supabase, Lead, Booking, Task } from '@/lib/supabase/client';
+import { 
+  supabase, 
+  Lead, 
+  getLeadWithFollowUps, 
+  calculateLeadScore, 
+  getLeadGrade, 
+  getTeamMembers, 
+  TeamMember, 
+  assignLead, 
+  FollowUpLog 
+} from '@/lib/supabase/client';
+import { LeadGradeBadge } from '@/components/leads/lead-grade-badge';
+import { FollowUpForm } from '@/components/leads/follow-up-form';
+import { FollowUpList } from '@/components/leads/follow-up-list';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,185 +23,106 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  ArrowLeft,
-  Mail,
-  Phone,
-  Globe,
-  Wallet,
-  Calendar,
-  Pencil,
-  Save,
-  X,
-  Plus,
-  CheckSquare,
-  Building2,
-  Loader2,
-} from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Pencil, Save, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
 const leadStatuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
+const leadSources = ['website', 'referral', 'social', 'walk-in', 'advertisement', 'other'];
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+
   const [lead, setLead] = useState<Lead | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUpLog[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', due_date: '' });
+  const [form, setForm] = useState<Partial<Lead>>({});
 
   useEffect(() => {
+    if (!user) return;
+
     async function fetchData() {
-      if (!user) return;
+      try {
+        const { lead, followUps } = await getLeadWithFollowUps(params.id, user.id);
+        const team = await getTeamMembers(user.id);
 
-      const [{ data: leadData, error: leadError }, { data: bookingData }, { data: taskData }] =
-        await Promise.all([
-          supabase
-            .from('leads')
-            .select('*')
-            .eq('id', params.id)
-            .eq('user_id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('bookings')
-            .select('*')
-            .eq('lead_id', params.id)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('tasks')
-            .select('*')
-            .eq('related_lead_id', params.id)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-        ]);
-
-      if (leadError || !leadData) {
-        toast({ title: 'Lead not found', variant: 'destructive' });
+        setLead(lead);
+        setFollowUps(followUps);
+        setTeamMembers(team);
+        setForm(lead);
+      } catch (error) {
+        toast({ title: 'Error loading lead', variant: 'destructive' });
         router.push('/dashboard/leads');
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      setLead(leadData);
-      setForm(leadData);
-      setBookings(bookingData ?? []);
-      setTasks(taskData ?? []);
-      setLoading(false);
     }
 
     fetchData();
-  }, [params.id, user, router, toast]);
+  }, [params.id, user, toast, router]);
 
   const handleSave = async () => {
-    if (!user) return;
-
+    if (!user || !lead) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('leads')
-      .update({ ...form, user_id: user.id })
-      .eq('id', params.id)
-      .eq('user_id', user.id);
 
-    if (error) {
-      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Lead updated successfully' });
-      setLead({ ...lead!, ...form } as Lead);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update(form)
+        .eq('id', params.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setLead({ ...lead, ...form } as Lead);
       setEditing(false);
-    }
-    setSaving(false);
-  };
-
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({
-        user_id: user.id,
-        title: taskForm.title,
-        priority: taskForm.priority,
-        due_date: taskForm.due_date || null,
-        related_lead_id: params.id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast({
-        title: 'Failed to add task',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      setTasks([data, ...tasks]);
-      setTaskForm({ title: '', priority: 'medium', due_date: '' });
-      setShowTaskForm(false);
-      toast({ title: 'Task added' });
-    }
-  };
-
-  const toggleTaskDone = async (task: Task) => {
-    if (!user) return;
-
-    const newStatus = task.status === 'done' ? 'todo' : 'done';
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', task.id)
-      .eq('user_id', user.id);
-
-    if (error) {
+      toast({ title: 'Lead updated' });
+    } catch (error) {
       toast({ title: 'Update failed', variant: 'destructive' });
-    } else {
-      setTasks(tasks.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t)));
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading...
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
 
   if (!lead) return null;
 
+  const score = calculateLeadScore(lead);
+  const grade = getLeadGrade(score);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-4 flex-wrap">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/leads">
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </Button>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold tracking-tight">{lead.name}</h2>
-          <div className="flex items-center gap-2 mt-1">
+          <h2 className="text-2xl font-bold">{lead.name}</h2>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <LeadGradeBadge grade={grade} />
             <StatusBadge status={lead.status} />
             <span className="text-sm text-muted-foreground">• {lead.source}</span>
           </div>
         </div>
         {editing ? (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditing(false);
-                setForm(lead);
-              }}
-            >
+            <Button variant="outline" onClick={() => setEditing(false)}>
               <X className="w-4 h-4 mr-2" /> Cancel
             </Button>
             <Button onClick={handleSave} disabled={saving}>
@@ -203,254 +137,246 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Lead info */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Lead Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {editing ? (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Name</Label>
-                    <Input
-                      value={form.name ?? ''}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    />
+        {/* Left: Lead Info & Follow-up Form */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Lead Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lead Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {editing ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input 
+                        id="name"
+                        value={form.name ?? ''} 
+                        onChange={(e) => setForm({ ...form, name: e.target.value })} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={form.status ?? 'new'} onValueChange={(v) => setForm({ ...form, status: v })}>
+                        <SelectTrigger id="status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {leadStatuses.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select
-                      value={form.status ?? 'new'}
-                      onValueChange={(v) => setForm({ ...form, status: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {leadStatuses.map((s) => (
-                          <SelectItem key={s} value={s} className="capitalize">
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input
-                      value={form.email ?? ''}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone</Label>
-                    <Input
-                      value={form.phone ?? ''}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Source</Label>
-                    <Input
-                      value={form.source ?? ''}
-                      onChange={(e) => setForm({ ...form, source: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Budget</Label>
-                    <Input
-                      value={form.budget ?? ''}
-                      onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Unit Interest</Label>
-                  <Input
-                    value={form.unit_interest ?? ''}
-                    onChange={(e) => setForm({ ...form, unit_interest: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={form.notes ?? ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    rows={4}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InfoRow icon={Mail} label="Email" value={lead.email || '—'} />
-                  <InfoRow icon={Phone} label="Phone" value={lead.phone || '—'} />
-                  <InfoRow icon={Globe} label="Source" value={lead.source} />
-                  <InfoRow icon={Wallet} label="Budget" value={lead.budget || '—'} />
-                  <InfoRow
-                    icon={Calendar}
-                    label="Created"
-                    value={new Date(lead.created_at).toLocaleDateString()}
-                  />
-                  <InfoRow icon={Building2} label="Unit Interest" value={lead.unit_interest || '—'} />
-                </div>
-                {lead.notes && (
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm font-medium mb-1">Notes</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{lead.notes}</p>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Tasks */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Tasks</CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowTaskForm(!showTaskForm)}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {showTaskForm && (
-              <form onSubmit={handleAddTask} className="space-y-3 pb-3 border-b border-border">
-                <Input
-                  placeholder="Task title"
-                  value={taskForm.title}
-                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  required
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Select
-                    value={taskForm.priority}
-                    onValueChange={(v) => setTaskForm({ ...taskForm, priority: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="date"
-                    value={taskForm.due_date}
-                    onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
-                  />
-                </div>
-                <Button type="submit" size="sm" className="w-full">
-                  Add Task
-                </Button>
-              </form>
-            )}
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No tasks for this lead</p>
-            ) : (
-              tasks.map((task) => (
-                <div key={task.id} className="flex items-start gap-3 group">
-                  <button
-                    onClick={() => toggleTaskDone(task)}
-                    className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${
-                      task.status === 'done'
-                        ? 'bg-success border-success text-success-foreground'
-                        : 'border-border hover:border-primary'
-                    }`}
-                  >
-                    {task.status === 'done' && <CheckSquare className="w-3 h-3" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm ${
-                        task.status === 'done'
-                          ? 'line-through text-muted-foreground'
-                          : 'font-medium'
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {task.priority} priority
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email"
+                        value={form.email ?? ''} 
+                        onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone"
+                        value={form.phone ?? ''} 
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })} 
+                      />
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="source">Source</Label>
+                      <Select value={form.source ?? 'website'} onValueChange={(v) => setForm({ ...form, source: v })}>
+                        <SelectTrigger id="source">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {leadSources.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="budget">Budget</Label>
+                      <Input 
+                        id="budget"
+                        value={form.budget ?? ''} 
+                        onChange={(e) => setForm({ ...form, budget: e.target.value })} 
+                        placeholder="e.g. 500-600 jt" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="unit_interest">Unit Interest</Label>
+                    <Input 
+                      id="unit_interest"
+                      value={form.unit_interest ?? ''} 
+                      onChange={(e) => setForm({ ...form, unit_interest: e.target.value })} 
+                      placeholder="e.g. Tipe A, 100m²" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea 
+                      id="notes"
+                      value={form.notes ?? ''} 
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })} 
+                      rows={3} 
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        {lead.email || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        {lead.phone || '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Budget</p>
+                      <p className="text-sm font-medium">{lead.budget || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Unit Interest</p>
+                      <p className="text-sm font-medium">{lead.unit_interest || '—'}</p>
+                    </div>
+                  </div>
+
+                  {lead.notes && (
+                    <div className="pt-4 border-t">
+                      <p className="text-xs text-muted-foreground">Notes</p>
+                      <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Follow-up Form */}
+          {user && <FollowUpForm leadId={params.id} userId={user.id} onSuccess={(log) => setFollowUps([log, ...followUps])} />}
+        </div>
+
+        {/* Right: Assignment & Score */}
+        <div className="space-y-6">
+          {/* Lead Score Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lead Score</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <p className="text-4xl font-bold">{score}</p>
+                <p className="text-sm text-muted-foreground">out of 100</p>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${
+                    grade === 'HOT' ? 'bg-red-500' : grade === 'WARM' ? 'bg-yellow-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${score}%` }}
+                />
+              </div>
+              <p className="text-center text-sm">
+                Grade: <span className="font-semibold">{grade}</span>
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Assignment Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Assign To</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={lead.assigned_to || ''}
+                onValueChange={(value) => {
+                  if (user) {
+                    assignLead(params.id, value || null, user.id);
+                    setLead({ ...lead, assigned_to: value || null });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          {/* Quick Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Quick Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Created</p>
+                <p>{new Date(lead.created_at).toLocaleDateString()}</p>
+              </div>
+              {lead.contacted_at && (
+                <div>
+                  <p className="text-xs text-muted-foreground">First Contact</p>
+                  <p>{new Date(lead.contacted_at).toLocaleDateString()}</p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              )}
+              {lead.last_follow_up_at && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Last Follow-up</p>
+                  <p>{new Date(lead.last_follow_up_at).toLocaleDateString()}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Bookings */}
+      {/* Follow-ups List */}
       <Card>
         <CardHeader>
-          <CardTitle>Related Bookings</CardTitle>
-          <CardDescription>Bookings associated with this lead</CardDescription>
+          <CardTitle>Follow-up History</CardTitle>
+          <CardDescription>{followUps.length} follow-ups logged</CardDescription>
         </CardHeader>
         <CardContent>
-          {bookings.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No bookings for this lead
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {bookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="flex items-center justify-between py-3 border-b border-border last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {new Date(booking.booking_date).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">{booking.status}</p>
-                  </div>
-                  <span className="text-sm font-semibold">
-                    ${Number(booking.amount).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <FollowUpList logs={followUps} />
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted shrink-0">
-        <Icon className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium truncate">{value}</p>
-      </div>
     </div>
   );
 }
