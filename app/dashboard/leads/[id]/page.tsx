@@ -46,9 +46,12 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!user) return;
-
+  
     async function fetchData() {
       try {
+        // TypeScript knows user is not null here because of the check above
+        if (!user || !user.id) return;
+        
         const { lead, followUps } = await getLeadWithFollowUps(params.id, user.id);
         const team = await getTeamMembers(user.id);
 
