@@ -2,81 +2,136 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { useToast } from '@/hooks/use-toast';
-import { supabase, Lead, Unit, Booking, Expense } from '@/lib/supabase/client';
-import { formatCurrency } from '@/lib/currency';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import {
-  ArrowUp, TrendingUp, Users, Building2, Wallet,
-  LogOut, Loader2, AlertCircle, ArrowRight,
-} from 'lucide-react';
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
+import { Loader2 } from 'lucide-react';
 
-type DashboardStats = {
-  leads: Lead[];
-  units: Unit[];
-  bookings: Booking[];
-  expenses: Expense[];
-};
+// Animated floating property cluster component
+function FloatingCluster() {
+  const clusters = [
+    {
+      id: 1,
+      label: 'Houses',
+      icon: '🏠',
+      delay: '0s',
+      duration: '20s',
+      color: 'from-blue-400 to-blue-600',
+    },
+    {
+      id: 2,
+      label: 'Apartments',
+      icon: '🏢',
+      delay: '2s',
+      duration: '25s',
+      color: 'from-cyan-400 to-blue-500',
+    },
+    {
+      id: 3,
+      label: 'Commercial',
+      icon: '🏬',
+      delay: '4s',
+      duration: '22s',
+      color: 'from-indigo-400 to-purple-600',
+    },
+    {
+      id: 4,
+      label: 'Land',
+      icon: '📍',
+      delay: '1s',
+      duration: '24s',
+      color: 'from-violet-400 to-purple-600',
+    },
+    {
+      id: 5,
+      label: 'Townhouse',
+      icon: '🏘️',
+      delay: '3s',
+      duration: '26s',
+      color: 'from-sky-400 to-cyan-500',
+    },
+    {
+      id: 6,
+      label: 'Property',
+      icon: '🏗️',
+      delay: '5s',
+      duration: '23s',
+      color: 'from-blue-500 to-indigo-600',
+    },
+  ];
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Background clouds effect */}
+      <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-sky-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" />
+
+      {/* Animated clusters */}
+      {clusters.map((cluster, index) => (
+        <div
+          key={cluster.id}
+          className="absolute"
+          style={{
+            animation: `float ${cluster.duration} ease-in-out infinite`,
+            animationDelay: cluster.delay,
+            left: `${15 + (index % 3) * 30}%`,
+            top: `${10 + Math.floor(index / 3) * 40}%`,
+          }}
+        >
+          <div
+            className={`
+              bg-gradient-to-br ${cluster.color}
+              rounded-full shadow-lg
+              flex flex-col items-center justify-center
+              text-white font-semibold
+              hover:scale-110 transition-transform duration-300
+              backdrop-blur-sm
+            `}
+            style={{
+              width: '120px',
+              height: '120px',
+            }}
+          >
+            <div className="text-4xl mb-2">{cluster.icon}</div>
+            <div className="text-xs text-center px-2">{cluster.label}</div>
+          </div>
+        </div>
+      ))}
+
+      {/* Floating particles */}
+      {Array.from({ length: 20 }).map((_, i) => (
+        <div
+          key={`particle-${i}`}
+          className="absolute rounded-full bg-white/20 dark:bg-white/10 backdrop-blur-sm"
+          style={{
+            width: Math.random() * 40 + 20 + 'px',
+            height: Math.random() * 40 + 20 + 'px',
+            left: Math.random() * 100 + '%',
+            top: Math.random() * 100 + '%',
+            animation: `float ${15 + Math.random() * 10}s ease-in-out infinite`,
+            animationDelay: Math.random() * 5 + 's',
+            opacity: 0.3,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
-
-  const [stats, setStats] = useState<DashboardStats>({
-    leads: [],
-    units: [],
-    bookings: [],
-    expenses: [],
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      // Jika sudah login, redirect ke dashboard
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && user && mounted) {
       router.push('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, mounted]);
 
-  // Load stats untuk unauthenticated users (demo data)
-  useEffect(() => {
-    if (user) return; // Skip jika sudah login
-
-    const fetchStats = async () => {
-      try {
-        setError(null);
-        setLoading(true);
-
-        // Demo data untuk public homepage
-        // Bisa diambil dari public schema atau hardcoded
-        setStats({
-          leads: [],
-          units: [],
-          bookings: [],
-          expenses: [],
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load data';
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [user]);
-
-  // Jika user sudah authenticated, loading screen
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -87,189 +142,93 @@ export default function HomePage() {
     );
   }
 
-  // Jika user sudah authenticated, redirect ke dashboard
   if (user) {
-    return null; // Router akan handle redirect
+    return null;
   }
 
-  // PUBLIC PAGE - Untuk unauthenticated users
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navbar */}
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold">
-              P
-            </div>
-            <span className="font-bold text-lg hidden sm:inline">Papatong CRM</span>
-          </div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated background */}
+      <FloatingCluster />
 
-          <div className="flex items-center gap-4">
-            <Button asChild variant="ghost">
-              <Link href="/login">Login</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/register">Sign Up</Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 animate-fade-in">
-        <div className="text-center space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-              Kelola <span className="text-primary">Marketing</span> dengan Lebih Efisien
-            </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Platform CRM modern untuk mengelola leads, bookings, dan operasional marketing properti Anda dengan mudah.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg">
-              <Link href="/register">
-                Mulai Gratis
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/login">Login Sekarang</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Fitur Unggulan</h2>
-          <p className="text-muted-foreground">Semua yang Anda butuhkan untuk mengelola marketing properti</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Feature 1 */}
-          <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
-            <CardHeader className="pb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle>Lead Management</CardTitle>
-              <CardDescription>Kelola prospek dengan sistem scoring otomatis</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Lead scoring HOT/WARM/COLD</p>
-              <p>✓ Tracking follow-up otomatis</p>
-              <p>✓ Multi-channel integration</p>
-            </CardContent>
-          </Card>
-
-          {/* Feature 2 */}
-          <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
-            <CardHeader className="pb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Building2 className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle>Unit Management</CardTitle>
-              <CardDescription>Kelola inventori properti secara real-time</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Tracking unit tersedia</p>
-              <p>✓ Status update instant</p>
-              <p>✓ Detailed information</p>
-            </CardContent>
-          </Card>
-
-          {/* Feature 3 */}
-          <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
-            <CardHeader className="pb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <TrendingUp className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle>Analytics & Reports</CardTitle>
-              <CardDescription>Dapatkan insights dengan dashboard analytics lengkap</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Real-time dashboard</p>
-              <p>✓ Performance metrics</p>
-              <p>✓ Custom reports</p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">1000+</p>
-                <p className="text-sm text-muted-foreground mt-2">Leads Dikelola</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">500+</p>
-                <p className="text-sm text-muted-foreground mt-2">Unit Terjual</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">50+</p>
-                <p className="text-sm text-muted-foreground mt-2">Team Active</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">99%</p>
-                <p className="text-sm text-muted-foreground mt-2">Uptime</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <Card className={cn(
-          'border-border/50',
-          'bg-gradient-to-r from-primary/5 via-primary/2 to-primary/5'
-        )}>
-          <CardContent className="pt-12 pb-12">
-            <div className="text-center space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold mb-2">Siap Mulai?</h2>
-                <p className="text-muted-foreground">Daftar sekarang dan dapatkan akses gratis selama 14 hari</p>
-              </div>
-              <Button asChild size="lg">
-                <Link href="/register">
-                  Daftar Sekarang
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
+      {/* Content overlay */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Navbar */}
+        <nav className="backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 sticky top-0">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="text-xl font-bold text-foreground">Papatong</div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                className="text-foreground hover:bg-white/20"
+                onClick={() => router.push('/login')}
+              >
+                Sign In
+              </Button>
+              <Button
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => router.push('/register')}
+              >
+                Sign Up
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+        </nav>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-muted-foreground">
-          <p>© 2024 Papatong CRM. Semua hak dilindungi.</p>
+        {/* Hero section */}
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center space-y-6 max-w-2xl animate-fade-in">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-primary uppercase tracking-wide backdrop-blur-md bg-white/10 dark:bg-white/5 px-4 py-2 rounded-full inline-block">
+                Welcome to Papatong CRM
+              </p>
+              <h1 className="text-5xl sm:text-6xl font-bold text-foreground drop-shadow-lg">
+                Manage Your Property Marketing
+              </h1>
+              <p className="text-lg text-muted-foreground drop-shadow backdrop-blur-sm">
+                Simple, fast, and powerful CRM for property teams
+              </p>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <Button
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-lg px-8 py-6"
+                onClick={() => router.push('/register')}
+              >
+                Get Started
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 py-6 backdrop-blur-md bg-white/20 dark:bg-white/10 border-white/30 hover:bg-white/30"
+                onClick={() => router.push('/login')}
+              >
+                Sign In
+              </Button>
+            </div>
+          </div>
         </div>
-      </footer>
+      </div>
+
+      {/* CSS for float animation */}
+      <style>{`
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px) translateX(0px);
+          }
+          25% {
+            transform: translateY(-20px) translateX(10px);
+          }
+          50% {
+            transform: translateY(-40px) translateX(-10px);
+          }
+          75% {
+            transform: translateY(-20px) translateX(10px);
+          }
+        }
+      `}</style>
     </div>
   );
 }
