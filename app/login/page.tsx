@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -87,7 +88,18 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <Card className="border-border/50 shadow-lg">
-          <CardHeader className="space-y-2">
+          <CardHeader className="space-y-3">
+            {/* Logo */}
+            <div className="flex justify-center">
+              <Image
+                src="/logo.png"
+                alt="Papatong CRM Logo"
+                width={64}
+                height={64}
+                className="object-contain w-16 h-16"
+                priority
+              />
+            </div>
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
             <p className="text-sm text-muted-foreground text-center">
               Welcome back to Papatong CRM
