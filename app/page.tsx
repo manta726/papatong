@@ -6,112 +6,125 @@ import { useAuth } from '@/lib/supabase/auth-context';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
-// Animated floating property cluster component
-function FloatingCluster() {
-  const clusters = [
-    {
-      id: 1,
-      label: 'Houses',
-      icon: '🏠',
-      delay: '0s',
-      duration: '20s',
-      color: 'from-blue-400 to-blue-600',
-    },
-    {
-      id: 2,
-      label: 'Apartments',
-      icon: '🏢',
-      delay: '2s',
-      duration: '25s',
-      color: 'from-cyan-400 to-blue-500',
-    },
-    {
-      id: 3,
-      label: 'Commercial',
-      icon: '🏬',
-      delay: '4s',
-      duration: '22s',
-      color: 'from-indigo-400 to-purple-600',
-    },
-    {
-      id: 4,
-      label: 'Land',
-      icon: '📍',
-      delay: '1s',
-      duration: '24s',
-      color: 'from-violet-400 to-purple-600',
-    },
-    {
-      id: 5,
-      label: 'Townhouse',
-      icon: '🏘️',
-      delay: '3s',
-      duration: '26s',
-      color: 'from-sky-400 to-cyan-500',
-    },
-    {
-      id: 6,
-      label: 'Property',
-      icon: '🏗️',
-      delay: '5s',
-      duration: '23s',
-      color: 'from-blue-500 to-indigo-600',
-    },
-  ];
-
+// Animated property building shapes
+function AnimatedPropertyBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Background clouds effect */}
-      <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-sky-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" />
+      {/* Gradient sky background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-100 via-blue-50 to-orange-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" />
 
-      {/* Animated clusters */}
-      {clusters.map((cluster, index) => (
-        <div
-          key={cluster.id}
-          className="absolute"
-          style={{
-            animation: `float ${cluster.duration} ease-in-out infinite`,
-            animationDelay: cluster.delay,
-            left: `${15 + (index % 3) * 30}%`,
-            top: `${10 + Math.floor(index / 3) * 40}%`,
-          }}
-        >
-          <div
-            className={`
-              bg-gradient-to-br ${cluster.color}
-              rounded-full shadow-lg
-              flex flex-col items-center justify-center
-              text-white font-semibold
-              hover:scale-110 transition-transform duration-300
-              backdrop-blur-sm
-            `}
-            style={{
-              width: '120px',
-              height: '120px',
-            }}
-          >
-            <div className="text-4xl mb-2">{cluster.icon}</div>
-            <div className="text-xs text-center px-2">{cluster.label}</div>
-          </div>
-        </div>
-      ))}
+      {/* Animated building clusters */}
+      <svg
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+        viewBox="0 0 1200 800"
+      >
+        <defs>
+          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{ stopColor: '#f5a962', stopOpacity: 0.8 }} />
+            <stop offset="100%" style={{ stopColor: '#d4956b', stopOpacity: 0.9 }} />
+          </linearGradient>
+          <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{ stopColor: '#e8956b', stopOpacity: 0.8 }} />
+            <stop offset="100%" style={{ stopColor: '#c97a5f', stopOpacity: 0.9 }} />
+          </linearGradient>
+          <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{ stopColor: '#f0a968', stopOpacity: 0.8 }} />
+            <stop offset="100%" style={{ stopColor: '#d98a5f', stopOpacity: 0.9 }} />
+          </linearGradient>
+          <filter id="shadow">
+            <feDropShadow
+              dx="0"
+              dy="4"
+              stdDeviation="3"
+              floodOpacity="0.2"
+            />
+          </filter>
+        </defs>
 
-      {/* Floating particles */}
-      {Array.from({ length: 20 }).map((_, i) => (
-        <div
-          key={`particle-${i}`}
-          className="absolute rounded-full bg-white/20 dark:bg-white/10 backdrop-blur-sm"
-          style={{
-            width: Math.random() * 40 + 20 + 'px',
-            height: Math.random() * 40 + 20 + 'px',
-            left: Math.random() * 100 + '%',
-            top: Math.random() * 100 + '%',
-            animation: `float ${15 + Math.random() * 10}s ease-in-out infinite`,
-            animationDelay: Math.random() * 5 + 's',
-            opacity: 0.3,
-          }}
-        />
-      ))}
+        {/* Building Group 1 - Left side (animated) */}
+        <g className="animate-slide-left opacity-90">
+          {/* Main building left */}
+          <polygon
+            points="100,250 150,180 200,180 250,250 250,500 100,500"
+            fill="url(#grad1)"
+            filter="url(#shadow)"
+          />
+          {/* Windows left building */}
+          <rect x="120" y="220" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="160" y="220" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="120" y="280" width="20" height="20" fill="#ffd700" opacity="0.7" />
+          <rect x="160" y="280" width="20" height="20" fill="#ffd700" opacity="0.7" />
+          <rect x="120" y="340" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="160" y="340" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="120" y="400" width="20" height="20" fill="#ffd700" opacity="0.7" />
+          <rect x="160" y="400" width="20" height="20" fill="#ffd700" opacity="0.7" />
+
+          {/* Secondary building left */}
+          <polygon
+            points="280,300 320,230 360,230 400,300 400,500 280,500"
+            fill="url(#grad2)"
+            filter="url(#shadow)"
+          />
+          <rect x="300" y="270" width="18" height="18" fill="#fff" opacity="0.6" />
+          <rect x="340" y="270" width="18" height="18" fill="#fff" opacity="0.6" />
+          <rect x="300" y="340" width="18" height="18" fill="#ffd700" opacity="0.7" />
+          <rect x="340" y="340" width="18" height="18" fill="#ffd700" opacity="0.7" />
+        </g>
+
+        {/* Building Group 2 - Center (static) */}
+        <g className="opacity-85">
+          {/* Main center building */}
+          <polygon
+            points="500,200 560,120 620,120 680,200 680,520 500,520"
+            fill="url(#grad3)"
+            filter="url(#shadow)"
+          />
+          {/* Windows center */}
+          <rect x="520" y="170" width="25" height="25" fill="#fff" opacity="0.6" />
+          <rect x="570" y="170" width="25" height="25" fill="#fff" opacity="0.6" />
+          <rect x="520" y="260" width="25" height="25" fill="#ffd700" opacity="0.7" />
+          <rect x="570" y="260" width="25" height="25" fill="#ffd700" opacity="0.7" />
+          <rect x="520" y="350" width="25" height="25" fill="#fff" opacity="0.6" />
+          <rect x="570" y="350" width="25" height="25" fill="#fff" opacity="0.6" />
+          <rect x="520" y="440" width="25" height="25" fill="#ffd700" opacity="0.7" />
+          <rect x="570" y="440" width="25" height="25" fill="#ffd700" opacity="0.7" />
+        </g>
+
+        {/* Building Group 3 - Right side (animated) */}
+        <g className="animate-slide-right opacity-90">
+          {/* Building right 1 */}
+          <polygon
+            points="800,280 850,210 900,210 950,280 950,500 800,500"
+            fill="url(#grad1)"
+            filter="url(#shadow)"
+          />
+          <rect x="820" y="250" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="860" y="250" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="820" y="320" width="20" height="20" fill="#ffd700" opacity="0.7" />
+          <rect x="860" y="320" width="20" height="20" fill="#ffd700" opacity="0.7" />
+
+          {/* Building right 2 */}
+          <polygon
+            points="1000,250 1050,180 1100,180 1150,250 1150,500 1000,500"
+            fill="url(#grad2)"
+            filter="url(#shadow)"
+          />
+          <rect x="1020" y="220" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="1060" y="220" width="20" height="20" fill="#fff" opacity="0.6" />
+          <rect x="1020" y="300" width="20" height="20" fill="#ffd700" opacity="0.7" />
+          <rect x="1060" y="300" width="20" height="20" fill="#ffd700" opacity="0.7" />
+        </g>
+
+        {/* Animated clouds/mist effect */}
+        <g className="animate-float opacity-30" style={{ animationDuration: '20s' }}>
+          <ellipse cx="200" cy="150" rx="80" ry="40" fill="#fff" />
+          <ellipse cx="900" cy="100" rx="100" ry="50" fill="#fff" />
+        </g>
+      </svg>
+
+      {/* Overlay gradient untuk readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent dark:from-black/60" />
     </div>
   );
 }
@@ -149,12 +162,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Animated background */}
-      <FloatingCluster />
+      <AnimatedPropertyBackground />
 
       {/* Content overlay */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Navbar */}
-        <nav className="backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 sticky top-0">
+        <nav className="backdrop-blur-sm bg-white/5 dark:bg-black/10 border-b border-white/10 sticky top-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="text-xl font-bold text-foreground">Papatong</div>
             <div className="flex items-center gap-3">
@@ -175,20 +188,13 @@ export default function HomePage() {
           </div>
         </nav>
 
-        {/* Hero section */}
+        {/* Hero section - MINIMAL */}
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center space-y-6 max-w-2xl animate-fade-in">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-primary uppercase tracking-wide backdrop-blur-md bg-white/10 dark:bg-white/5 px-4 py-2 rounded-full inline-block">
-                Welcome to Papatong CRM
-              </p>
-              <h1 className="text-5xl sm:text-6xl font-bold text-foreground drop-shadow-lg">
-                Manage Your Property Marketing
-              </h1>
-              <p className="text-lg text-muted-foreground drop-shadow backdrop-blur-sm">
-                Simple, fast, and powerful CRM for property teams
-              </p>
-            </div>
+            {/* Only title + CTA buttons */}
+            <h1 className="text-5xl sm:text-6xl font-bold text-foreground drop-shadow-lg">
+              Manage Your Property
+            </h1>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -212,21 +218,61 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CSS for float animation */}
+      {/* CSS Animations */}
       <style>{`
+        @keyframes slide-left {
+          0% {
+            transform: translateX(-50px);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.9;
+          }
+          90% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translateX(50px);
+            opacity: 0;
+          }
+        }
+
+        @keyframes slide-right {
+          0% {
+            transform: translateX(50px);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.9;
+          }
+          90% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translateX(-50px);
+            opacity: 0;
+          }
+        }
+
         @keyframes float {
           0%, 100% {
-            transform: translateY(0px) translateX(0px);
-          }
-          25% {
-            transform: translateY(-20px) translateX(10px);
+            transform: translateY(0px);
           }
           50% {
-            transform: translateY(-40px) translateX(-10px);
+            transform: translateY(-20px);
           }
-          75% {
-            transform: translateY(-20px) translateX(10px);
-          }
+        }
+
+        .animate-slide-left {
+          animation: slide-left 15s ease-in-out infinite;
+        }
+
+        .animate-slide-right {
+          animation: slide-right 15s ease-in-out infinite;
+        }
+
+        .animate-float {
+          animation: float 10s ease-in-out infinite;
         }
       `}</style>
     </div>
