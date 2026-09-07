@@ -12,6 +12,10 @@ const config: Config = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'dashboard-pattern': `
+          radial-gradient(circle at 20% 50%, rgba(199, 210, 254, 0.08), transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(147, 197, 253, 0.08), transparent 50%)
+        `,
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -67,6 +71,18 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        sidebar: {
+          DEFAULT: 'hsl(var(--card))',
+          hover: 'hsl(210 20% 95%)',
+          border: 'hsl(var(--border))',
+          text: 'hsl(var(--muted-foreground))',
+          'text-active': 'hsl(var(--primary))',
+        },
+      },
+      boxShadow: {
+        'sm-light': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'md-light': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        'sidebar': '2px 0 8px 0 rgba(0, 0, 0, 0.05)',
       },
       keyframes: {
         'accordion-down': {
@@ -89,4 +105,5 @@ const config: Config = {
   },
   plugins: [require('tailwindcss-animate')],
 };
+
 export default config;
