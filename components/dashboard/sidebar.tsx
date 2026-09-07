@@ -208,8 +208,7 @@ export function Sidebar() {
             <span className="opacity-60">v1</span>
           ) : (
             <div className="space-y-0.5">
-              <p className="font-medium">Papatong</p>
-              <p className="text-muted-foreground/60">v1.0.0</p>
+              <p className="font-medium">Management Papatong Land</p>
             </div>
           )}
         </div>
