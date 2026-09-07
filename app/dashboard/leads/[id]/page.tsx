@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { 
-  supabase, 
-  Lead, 
-  getLeadWithFollowUps, 
-  calculateLeadScore, 
-  getLeadGrade, 
-  getTeamMembers, 
-  TeamMember, 
-  assignLead, 
-  FollowUpLog 
+import {
+  supabase,
+  Lead,
+  getLeadWithFollowUps,
+  calculateLeadScore,
+  getLeadGrade,
+  getTeamMembers,
+  TeamMember,
+  assignLead,
+  FollowUpLog,
 } from '@/lib/supabase/client';
+import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
 import { LeadGradeBadge } from '@/components/leads/lead-grade-badge';
 import { FollowUpForm } from '@/components/leads/follow-up-form';
 import { FollowUpList } from '@/components/leads/follow-up-list';
@@ -31,6 +32,9 @@ import { useToast } from '@/hooks/use-toast';
 const leadStatuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
 const leadSources = ['website', 'referral', 'social', 'walk-in', 'advertisement', 'other'];
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -46,12 +50,11 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!user) return;
-  
+
     async function fetchData() {
       try {
-        // TypeScript knows user is not null here because of the check above
         if (!user || !user.id) return;
-        
+
         const { lead, followUps } = await getLeadWithFollowUps(params.id, user.id);
         const team = await getTeamMembers(user.id);
 
@@ -75,9 +78,15 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     setSaving(true);
 
     try {
+      // Parse budget sebelum save
+      const payload = {
+        ...form,
+        budget: form.budget ? parseBudget(form.budget) : null,
+      };
+
       const { error } = await supabase
         .from('leads')
-        .update(form)
+        .update(payload)
         .eq('id', params.id)
         .eq('user_id', user.id);
 
@@ -153,15 +162,18 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input 
+                      <Input
                         id="name"
-                        value={form.name ?? ''} 
-                        onChange={(e) => setForm({ ...form, name: e.target.value })} 
+                        value={form.name ?? ''}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
-                      <Select value={form.status ?? 'new'} onValueChange={(v) => setForm({ ...form, status: v })}>
+                      <Select
+                        value={form.status ?? 'new'}
+                        onValueChange={(v) => setForm({ ...form, status: v })}
+                      >
                         <SelectTrigger id="status">
                           <SelectValue />
                         </SelectTrigger>
@@ -179,18 +191,18 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input 
+                      <Input
                         id="email"
-                        value={form.email ?? ''} 
-                        onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                        value={form.email ?? ''}
+                        onChange={(e) => setForm({ ...form, email: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input 
+                      <Input
                         id="phone"
-                        value={form.phone ?? ''} 
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })} 
+                        value={form.phone ?? ''}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
                       />
                     </div>
                   </div>
@@ -198,7 +210,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="source">Source</Label>
-                      <Select value={form.source ?? 'website'} onValueChange={(v) => setForm({ ...form, source: v })}>
+                      <Select
+                        value={form.source ?? 'website'}
+                        onValueChange={(v) => setForm({ ...form, source: v })}
+                      >
                         <SelectTrigger id="source">
                           <SelectValue />
                         </SelectTrigger>
@@ -211,34 +226,38 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* ✅ BUDGET INPUT EDIT MODE: Auto-format dengan "Rp" */}
                     <div className="space-y-2">
                       <Label htmlFor="budget">Budget</Label>
-                      <Input 
+                      <Input
                         id="budget"
-                        value={form.budget ?? ''} 
-                        onChange={(e) => setForm({ ...form, budget: e.target.value })} 
-                        placeholder="e.g. 500-600 jt" 
+                        value={formatRupiahInput(form.budget?.toString() ?? '')}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^\d]/g, '');
+                          setForm({ ...form, budget: raw ? parseInt(raw, 10) : null });
+                        }}
+                        placeholder="Rp 0"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="unit_interest">Unit Interest</Label>
-                    <Input 
+                    <Input
                       id="unit_interest"
-                      value={form.unit_interest ?? ''} 
-                      onChange={(e) => setForm({ ...form, unit_interest: e.target.value })} 
-                      placeholder="e.g. Tipe A, 100m²" 
+                      value={form.unit_interest ?? ''}
+                      onChange={(e) => setForm({ ...form, unit_interest: e.target.value })}
+                      placeholder="e.g. Tipe A, 100m²"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes</Label>
-                    <Textarea 
+                    <Textarea
                       id="notes"
-                      value={form.notes ?? ''} 
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })} 
-                      rows={3} 
+                      value={form.notes ?? ''}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      rows={3}
                     />
                   </div>
                 </>
@@ -262,9 +281,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
+                    {/* ✅ BUDGET DISPLAY: Format Rupiah */}
                     <div>
                       <p className="text-xs text-muted-foreground">Budget</p>
-                      <p className="text-sm font-medium">{lead.budget || '—'}</p>
+                      <p className="text-sm font-medium">{formatRupiah(lead.budget)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Unit Interest</p>
@@ -284,7 +304,13 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           </Card>
 
           {/* Follow-up Form */}
-          {user && <FollowUpForm leadId={params.id} userId={user.id} onSuccess={(log) => setFollowUps([log, ...followUps])} />}
+          {user && (
+            <FollowUpForm
+              leadId={params.id}
+              userId={user.id}
+              onSuccess={(log) => setFollowUps([log, ...followUps])}
+            />
+          )}
         </div>
 
         {/* Right: Assignment & Score */}
@@ -302,7 +328,11 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${
-                    grade === 'HOT' ? 'bg-red-500' : grade === 'WARM' ? 'bg-yellow-500' : 'bg-blue-500'
+                    grade === 'HOT'
+                      ? 'bg-red-500'
+                      : grade === 'WARM'
+                      ? 'bg-yellow-500'
+                      : 'bg-blue-500'
                   }`}
                   style={{ width: `${score}%` }}
                 />
