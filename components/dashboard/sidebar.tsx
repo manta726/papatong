@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import {
   BarChart3,
   Wallet,
   Settings,
-  Building,
   Menu,
   ChevronLeft,
   ChevronRight,
@@ -84,12 +84,11 @@ function NavItems({
     return pathname.startsWith(href);
   };
 
-  const mainItems = navItems.slice(0, -1); // All except settings
-  const settingsItem = navItems.slice(-1); // Only settings
+  const mainItems = navItems.slice(0, -1);
+  const settingsItem = navItems.slice(-1);
 
   return (
     <>
-      {/* Main Section */}
       <div className="space-y-1">
         {mainItems.map((item) => (
           <NavItem
@@ -102,7 +101,6 @@ function NavItems({
         ))}
       </div>
 
-      {/* Settings Section */}
       <div className="space-y-1 pt-2 border-t border-sidebar-border">
         {!collapsed && (
           <p className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -142,12 +140,14 @@ export function Sidebar() {
         )}
       >
         {/* Header */}
-        <div className={cn(
-          'h-16 border-b border-sidebar-border',
-          'px-4 flex items-center justify-between shrink-0',
-          'bg-gradient-to-r from-card to-card/50',
-          'transition-all duration-300'
-        )}>
+        <div
+          className={cn(
+            'h-16 border-b border-sidebar-border',
+            'px-4 flex items-center justify-between shrink-0',
+            'bg-gradient-to-r from-card to-card/50',
+            'transition-all duration-300'
+          )}
+        >
           <Link
             href="/dashboard"
             className={cn(
@@ -155,14 +155,17 @@ export function Sidebar() {
               'transition-all duration-200',
               'min-w-0 group rounded-lg hover:bg-accent/50 px-2 py-1'
             )}
+            title="Papatong CRM"
           >
-            <div className={cn(
-              'flex items-center justify-center w-9 h-9 rounded-lg',
-              'bg-gradient-to-br from-primary to-primary/80',
-              'text-primary-foreground shrink-0',
-              'group-hover:shadow-md transition-shadow'
-            )}>
-              <Building className="w-5 h-5" />
+            <div className="shrink-0">
+              <Image
+                src="/logo.png"
+                alt="Papatong Logo"
+                width={36}
+                height={36}
+                className="object-contain w-9 h-9"
+                priority
+              />
             </div>
             {!collapsed && (
               <span className="font-bold text-lg truncate group-hover:text-primary transition-colors">
@@ -193,12 +196,14 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className={cn(
-          'border-t border-sidebar-border p-3',
-          'bg-gradient-to-t from-card/50 to-transparent',
-          'text-xs text-muted-foreground text-center shrink-0',
-          'transition-all duration-300'
-        )}>
+        <div
+          className={cn(
+            'border-t border-sidebar-border p-3',
+            'bg-gradient-to-t from-card/50 to-transparent',
+            'text-xs text-muted-foreground text-center shrink-0',
+            'transition-all duration-300'
+          )}
+        >
           {collapsed ? (
             <span className="opacity-60">v1</span>
           ) : (
@@ -226,17 +231,20 @@ export function Sidebar() {
 
         <SheetContent side="left" className="w-64 p-0">
           {/* Mobile Header */}
-          <div className={cn(
-            'flex items-center gap-2.5 px-5 h-16',
-            'border-b border-sidebar-border'
-          )}>
-            <div className={cn(
-              'flex items-center justify-center w-9 h-9 rounded-lg',
-              'bg-gradient-to-br from-primary to-primary/80',
-              'text-primary-foreground'
-            )}>
-              <Building className="w-5 h-5" />
-            </div>
+          <div
+            className={cn(
+              'flex items-center gap-2.5 px-5 h-16',
+              'border-b border-sidebar-border'
+            )}
+          >
+            <Image
+              src="/logo.png"
+              alt="Papatong Logo"
+              width={36}
+              height={36}
+              className="object-contain w-9 h-9"
+              priority
+            />
             <span className="font-bold text-lg">Papatong</span>
           </div>
 
