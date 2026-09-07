@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Lead } from '@/lib/supabase/client';
+import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +48,7 @@ type FormData = {
   source: string;
   status: string;
   unit_interest: string;
-  budget: string;
+  budget: string;  // Simpan sebagai string (raw number only) di state
   notes: string;
 };
 
@@ -61,6 +62,9 @@ const emptyForm: FormData = {
   budget: '',
   notes: '',
 };
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 export default function LeadsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -83,10 +87,10 @@ export default function LeadsPage() {
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-      
+
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     const { data, error } = await query;
-    
+
     if (error) {
       toast({ title: 'Failed to load leads', description: error.message, variant: 'destructive' });
     } else {
@@ -125,7 +129,7 @@ export default function LeadsPage() {
       source: lead.source,
       status: lead.status,
       unit_interest: lead.unit_interest ?? '',
-      budget: lead.budget ?? '',
+      budget: lead.budget ? lead.budget.toString() : '',
       notes: lead.notes ?? '',
     });
     setEditingId(lead.id);
@@ -137,13 +141,20 @@ export default function LeadsPage() {
     if (!user) return;
 
     setSaving(true);
+
+    // Parse budget ke number sebelum save
+    const payload = {
+      ...form,
+      budget: parseBudget(form.budget),
+    };
+
     if (editingId) {
       const { error } = await supabase
         .from('leads')
-        .update(form)
+        .update(payload)
         .eq('id', editingId)
         .eq('user_id', user.id);
-        
+
       if (error) {
         toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       } else {
@@ -153,10 +164,10 @@ export default function LeadsPage() {
       }
     } else {
       const { error } = await supabase.from('leads').insert({
-        ...form,
+        ...payload,
         user_id: user.id,
       });
-      
+
       if (error) {
         toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
       } else {
@@ -176,7 +187,7 @@ export default function LeadsPage() {
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
-      
+
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
     } else {
@@ -280,8 +291,9 @@ export default function LeadsPage() {
                       <TableCell>
                         <StatusBadge status={lead.status} />
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">
-                        {lead.budget || '—'}
+                      {/* ✅ BUDGET: Format Rupiah */}
+                      <TableCell className="hidden lg:table-cell text-sm font-medium">
+                        {formatRupiah(lead.budget)}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                         {new Date(lead.created_at).toLocaleDateString()}
@@ -397,13 +409,17 @@ export default function LeadsPage() {
                   placeholder="e.g. 2BR unit"
                 />
               </div>
+              {/* ✅ BUDGET INPUT: Auto-format dengan "Rp" */}
               <div className="space-y-2">
                 <Label htmlFor="budget">Budget</Label>
                 <Input
                   id="budget"
-                  value={form.budget}
-                  onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                  placeholder="e.g. $500K - $700K"
+                  value={formatRupiahInput(form.budget)}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^\d]/g, '');
+                    setForm({ ...form, budget: raw });
+                  }}
+                  placeholder="Rp 0"
                 />
               </div>
             </div>
