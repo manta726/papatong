@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare,
   Wallet, TrendingUp, Loader2, AlertCircle,
@@ -180,7 +182,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+      <div className="animate-fade-in">
         <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
         <p className="text-muted-foreground text-sm mt-1">
           Monitor your marketing operations at a glance
@@ -189,7 +191,10 @@ export default function DashboardPage() {
 
       {/* Error Alert */}
       {error && (
-        <Card className="border-destructive bg-destructive/5">
+        <Card className={cn(
+          'border-destructive bg-destructive/5',
+          'animate-slide-up'
+        )}>
           <CardContent className="p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div>
@@ -200,28 +205,31 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Loading skeleton */}
+      {/* Loading Skeleton */}
       {loading ? (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-pulse">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-5 h-[110px] bg-muted" />
+              <Card key={i}>
+                <CardContent className="p-5 h-[110px] bg-muted/30 rounded-lg" />
               </Card>
             ))}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 animate-pulse">
             {Array.from({ length: 2 }).map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-5 h-[110px] bg-muted" />
+              <Card key={i}>
+                <CardContent className="p-5 h-[110px] bg-muted/30 rounded-lg" />
               </Card>
             ))}
           </div>
         </div>
       ) : (
         <>
-          {/* Stats grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Stats Grid */}
+          <div className={cn(
+            'grid gap-4 sm:grid-cols-2 lg:grid-cols-4',
+            'animate-fade-in'
+          )}>
             <StatsCard
               label="Total Leads"
               value={data.leads.length}
@@ -254,7 +262,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Revenue & Expenses */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={cn(
+            'grid gap-4 sm:grid-cols-2',
+            'animate-fade-in'
+          )}>
             <StatsCard
               label="Total Revenue"
               value={totalRevenue}
@@ -272,10 +283,13 @@ export default function DashboardPage() {
           </div>
 
           {/* Charts */}
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(
+            'grid gap-4 lg:grid-cols-2',
+            'animate-fade-in'
+          )}>
             {/* Revenue vs Expenses Area Chart */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
+            <Card className="lg:col-span-2 hover:shadow-md transition-shadow duration-200 border-border/50">
+              <CardHeader className="pb-3">
                 <CardTitle>Revenue vs Expenses</CardTitle>
                 <CardDescription>Tren 6 bulan terakhir</CardDescription>
               </CardHeader>
@@ -341,8 +355,8 @@ export default function DashboardPage() {
             </Card>
 
             {/* Lead Sources Pie Chart */}
-            <Card>
-              <CardHeader>
+            <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
+              <CardHeader className="pb-3">
                 <CardTitle>Lead Sources</CardTitle>
                 <CardDescription>Where your leads come from</CardDescription>
               </CardHeader>
@@ -383,8 +397,8 @@ export default function DashboardPage() {
             </Card>
 
             {/* Lead Status Bar Chart */}
-            <Card>
-              <CardHeader>
+            <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
+              <CardHeader className="pb-3">
                 <CardTitle>Lead Status Breakdown</CardTitle>
                 <CardDescription>Pipeline distribution</CardDescription>
               </CardHeader>
@@ -428,40 +442,50 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
+          <div className={cn(
+            'grid gap-4 lg:grid-cols-2',
+            'animate-fade-in'
+          )}>
+            <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
+              <CardHeader className="pb-3">
                 <CardTitle>Recent Leads</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-0 p-0">
                 {data.leads.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No leads yet</p>
                 ) : (
                   data.leads.slice(0, 5).map((lead) => (
-                    <div
+                    <Link
                       key={lead.id}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                      href={`/dashboard/leads/${lead.id}`}
+                      className={cn(
+                        'flex items-center justify-between px-6 py-3',
+                        'border-b border-border last:border-0',
+                        'hover:bg-accent transition-colors cursor-pointer group'
+                      )}
                     >
-                      <div>
-                        <p className="text-sm font-medium">{lead.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium group-hover:text-primary transition-colors">
+                          {lead.name}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {lead.source} • {lead.status}
                         </p>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground ml-4 flex-shrink-0">
                         {new Date(lead.created_at).toLocaleDateString('id-ID')}
                       </span>
-                    </div>
+                    </Link>
                   ))
                 )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
+            <Card className="hover:shadow-md transition-shadow duration-200 border-border/50">
+              <CardHeader className="pb-3">
                 <CardTitle>Upcoming Tasks</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-0 p-0">
                 {data.tasks.filter((t) => t.status !== 'done').length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No pending tasks</p>
                 ) : (
@@ -469,22 +493,29 @@ export default function DashboardPage() {
                     .filter((t) => t.status !== 'done')
                     .slice(0, 5)
                     .map((task) => (
-                      <div
+                      <Link
                         key={task.id}
-                        className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                        href={`/dashboard/tasks/${task.id}`}
+                        className={cn(
+                          'flex items-center justify-between px-6 py-3',
+                          'border-b border-border last:border-0',
+                          'hover:bg-accent transition-colors cursor-pointer group'
+                        )}
                       >
-                        <div>
-                          <p className="text-sm font-medium">{task.title}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium group-hover:text-primary transition-colors">
+                            {task.title}
+                          </p>
                           <p className="text-xs text-muted-foreground capitalize">
                             {task.priority} priority • {task.status.replace('_', ' ')}
                           </p>
                         </div>
                         {task.due_date && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground ml-4 flex-shrink-0">
                             {new Date(task.due_date).toLocaleDateString('id-ID')}
                           </span>
                         )}
-                      </div>
+                      </Link>
                     ))
                 )}
               </CardContent>
