@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/lib/supabase/auth-context';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -8,8 +9,8 @@ import { ThemeProvider } from '@/components/providers/theme-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Papatong CRM - Property Management',
-  description: 'Operational Marketing Management for Property Teams',
+  title: 'Papatong Land CRM',
+  description: 'Marketing Management Papatong Land',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -41,6 +42,9 @@ export default function RootLayout({
             <Toaster />
           </AuthProvider>
         </ThemeProvider>
+
+        {/* ✅ Vercel Analytics */}
+        <Analytics />
       </body>
     </html>
   );
