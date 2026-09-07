@@ -2,8 +2,6 @@
 
 /**
  * Format number ke Rupiah (contoh: 150000000 -> Rp 150.000.000)
- * @param value - number atau string angka
- * @param withSymbol - tampilkan "Rp" di depan (default: true)
  */
 export function formatRupiah(
   value: number | string | null | undefined,
@@ -11,21 +9,18 @@ export function formatRupiah(
 ): string {
   if (value === null || value === undefined || value === '') return '—';
 
-  // Convert ke number, hapus karakter non-digit
   const num = typeof value === 'string'
     ? parseInt(value.replace(/[^\d]/g, ''), 10)
     : value;
 
   if (isNaN(num) || num === 0) return '—';
 
-  // Format dengan titik sebagai pemisah ribuan
   const formatted = num.toLocaleString('id-ID');
-
   return withSymbol ? `Rp ${formatted}` : formatted;
 }
 
 /**
- * Format compact (untuk tampilan ringkas): 150000000 -> Rp 150jt
+ * Format compact (Rp 150jt, Rp 1.2M, dll) untuk tabel ringkas
  */
 export function formatRupiahCompact(
   value: number | string | null | undefined
@@ -51,9 +46,24 @@ export function formatRupiahCompact(
 }
 
 /**
- * Parse string budget ke number (untuk input form)
+ * Parse string budget ke number (untuk form input)
  */
-export function parseBudget(value: string): number {
+export function parseBudget(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return value;
   const cleaned = value.replace(/[^\d]/g, '');
-  return cleaned ? parseInt(cleaned, 10) : 0;
+  return cleaned ? parseInt(cleaned, 10) : null;
+}
+
+/**
+ * Format angka dengan prefix "Rp" untuk input field
+ * Contoh: 150000000 -> "Rp 150.000.000"
+ */
+export function formatRupiahInput(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  const num = typeof value === 'string'
+    ? parseInt(value.replace(/[^\d]/g, ''), 10)
+    : value;
+  if (isNaN(num) || num === 0) return '';
+  return `Rp ${num.toLocaleString('id-ID')}`;
 }
