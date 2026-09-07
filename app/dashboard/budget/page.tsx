@@ -237,8 +237,8 @@ export default function BudgetPage() {
 
       {/* Chart */}
       {categoryTotals.length > 0 && (
-        <Card>
-          <CardHeader>
+        <Card className="border-border/50 hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-3">
             <CardTitle>Spend by Category</CardTitle>
             <CardDescription>Breakdown of expenses per category</CardDescription>
           </CardHeader>
@@ -298,7 +298,7 @@ export default function BudgetPage() {
       </div>
 
       {/* Table */}
-      <Card>
+      <Card className="border-border/50">
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -374,7 +374,7 @@ export default function BudgetPage() {
 
       {/* Dialog Form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
           </DialogHeader>
