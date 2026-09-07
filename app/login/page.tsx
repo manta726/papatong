@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -47,7 +46,7 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       toast({
@@ -69,7 +68,7 @@ export default function LoginPage() {
 
     setLoading(true);
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       toast({
         title: 'Sign in failed',
