@@ -54,7 +54,7 @@ function NavItem({
         'transition-all duration-200 ease-in-out',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         collapsed && 'justify-center px-2',
-        active
+        isActive
           ? 'bg-primary text-primary-foreground shadow-md hover:shadow-lg'
           : [
               'text-sidebar-text hover:text-sidebar-text-active',
