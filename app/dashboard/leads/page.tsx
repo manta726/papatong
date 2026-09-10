@@ -1,41 +1,38 @@
+// app/dashboard/leads/page.tsx - COLLABORATIVE VERSION
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { supabase, Lead } from '@/lib/supabase/client';
+import { 
+  supabase, 
+  Lead, 
+  getAllLeads, 
+  createLead, 
+  updateLead, 
+  deleteLead 
+} from '@/lib/supabase/client';
 import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
 import { StatusBadge } from '@/components/leads/status-badge';
+import { LeadGradeBadge } from '@/components/leads/lead-grade-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogClose,
 } from '@/components/ui/dialog';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Eye, Users, Loader2 } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Eye, Users, Loader2, User } from 'lucide-react';
 import Link from 'next/link';
 
 const leadSources = ['website', 'referral', 'social', 'walk-in', 'advertisement', 'other'];
@@ -48,7 +45,7 @@ type FormData = {
   source: string;
   status: string;
   unit_interest: string;
-  budget: string;  // Simpan sebagai string (raw number only) di state
+  budget: string;
   notes: string;
 };
 
@@ -63,11 +60,10 @@ const emptyForm: FormData = {
   notes: '',
 };
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export default function LeadsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,32 +74,25 @@ export default function LeadsPage() {
   const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // ✅ CHANGED: Use getAllLeads (no user_id filter)
   const fetchLeads = useCallback(async () => {
-    if (!user) return;
-
     setLoading(true);
-    let query = supabase
-      .from('leads')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-    const { data, error } = await query;
-
-    if (error) {
-      toast({ title: 'Failed to load leads', description: error.message, variant: 'destructive' });
-    } else {
-      setLeads(data ?? []);
+    try {
+      const filters = statusFilter !== 'all' ? { status: statusFilter } : undefined;
+      const data = await getAllLeads(filters);
+      setLeads(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load leads';
+      toast({ title: 'Failed to load leads', description: message, variant: 'destructive' });
     }
     setLoading(false);
-  }, [statusFilter, toast, user]);
+  }, [statusFilter, toast]);
 
   useEffect(() => {
-    if (!authLoading && !user) return;
     fetchLeads();
-  }, [fetchLeads, authLoading, user]);
+  }, [fetchLeads]);
 
+  // Filter by search
   const filteredLeads = leads.filter((lead) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -111,7 +100,8 @@ export default function LeadsPage() {
       lead.name.toLowerCase().includes(q) ||
       lead.email?.toLowerCase().includes(q) ||
       lead.phone?.toLowerCase().includes(q) ||
-      lead.source.toLowerCase().includes(q)
+      lead.source.toLowerCase().includes(q) ||
+      lead.creator_name?.toLowerCase().includes(q)
     );
   });
 
@@ -136,63 +126,43 @@ export default function LeadsPage() {
     setDialogOpen(true);
   };
 
+  // ✅ CHANGED: Use createLead / updateLead functions
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
     setSaving(true);
 
-    // Parse budget ke number sebelum save
     const payload = {
       ...form,
       budget: parseBudget(form.budget),
     };
 
-    if (editingId) {
-      const { error } = await supabase
-        .from('leads')
-        .update(payload)
-        .eq('id', editingId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-      } else {
+    try {
+      if (editingId) {
+        await updateLead(editingId, payload);
         toast({ title: 'Lead updated successfully' });
-        setDialogOpen(false);
-        fetchLeads();
-      }
-    } else {
-      const { error } = await supabase.from('leads').insert({
-        ...payload,
-        user_id: user.id,
-      });
-
-      if (error) {
-        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
       } else {
+        await createLead(payload);
         toast({ title: 'Lead created successfully' });
-        setDialogOpen(false);
-        fetchLeads();
       }
+      setDialogOpen(false);
+      fetchLeads();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Operation failed';
+      toast({ title: editingId ? 'Update failed' : 'Create failed', description: message, variant: 'destructive' });
     }
     setSaving(false);
   };
 
+  // ✅ CHANGED: No user_id filter on delete
   const handleDelete = async (id: string) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('leads')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-    } else {
+    try {
+      await deleteLead(id);
       toast({ title: 'Lead deleted' });
       fetchLeads();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Delete failed';
+      toast({ title: 'Delete failed', description: message, variant: 'destructive' });
     }
   };
 
@@ -201,7 +171,9 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Leads</h2>
-          <p className="text-muted-foreground text-sm mt-1">Manage your prospective customers</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage all leads collaboratively ({leads.length} total)
+          </p>
         </div>
         <Button onClick={openAdd}>
           <Plus className="w-4 h-4 mr-2" />
@@ -214,7 +186,7 @@ export default function LeadsPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email, phone..."
+            placeholder="Search by name, email, phone, creator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -258,8 +230,11 @@ export default function LeadsPage() {
                     <TableHead className="hidden md:table-cell">Contact</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">Grade</TableHead>
+                    {/* ✅ NEW: Created By column */}
+                    <TableHead className="hidden lg:table-cell">Created By</TableHead>
                     <TableHead className="hidden lg:table-cell">Budget</TableHead>
-                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="hidden xl:table-cell">Created</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -275,28 +250,42 @@ export default function LeadsPage() {
                         </Link>
                         {lead.unit_interest && (
                           <p className="text-xs text-muted-foreground">
-                            Interested in: {lead.unit_interest}
+                            {lead.unit_interest}
                           </p>
                         )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <div className="text-sm">
                           {lead.email && <p>{lead.email}</p>}
-                          {lead.phone && (
-                            <p className="text-muted-foreground">{lead.phone}</p>
-                          )}
+                          {lead.phone && <p className="text-muted-foreground">{lead.phone}</p>}
                         </div>
                       </TableCell>
                       <TableCell className="capitalize text-sm">{lead.source}</TableCell>
                       <TableCell>
                         <StatusBadge status={lead.status} />
                       </TableCell>
-                      {/* ✅ BUDGET: Format Rupiah */}
+                      <TableCell className="hidden sm:table-cell">
+                        <LeadGradeBadge grade={lead.lead_grade} />
+                      </TableCell>
+                      {/* ✅ NEW: Show creator info */}
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-sm">
+                            {lead.creator_name || 'Unknown'}
+                          </span>
+                          {lead.created_by === user?.id && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                              You
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm font-medium">
                         {formatRupiah(lead.budget)}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {new Date(lead.created_at).toLocaleDateString()}
+                      <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
+                        {new Date(lead.created_at).toLocaleDateString('id-ID')}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -332,7 +321,7 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog - SAME AS BEFORE */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -409,7 +398,6 @@ export default function LeadsPage() {
                   placeholder="e.g. 2BR unit"
                 />
               </div>
-              {/* ✅ BUDGET INPUT: Auto-format dengan "Rp" */}
               <div className="space-y-2">
                 <Label htmlFor="budget">Budget</Label>
                 <Input
