@@ -1,4 +1,4 @@
-// lib/supabase/client.ts - COLLABORATIVE CRM VERSION
+// lib/supabase/client.ts - COLLABORATIVE CRM VERSION (FIXED)
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
@@ -12,11 +12,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
-// ============= TYPE DEFINITIONS =============
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
 
-/**
- * USER PROFILE
- */
 export type UserProfile = {
   id: string;
   email: string;
@@ -31,11 +30,9 @@ export type UserProfile = {
   updated_at: string;
 };
 
-/**
- * LEAD - With audit trail
- */
 export type Lead = {
   id: string;
+  user_id: string;           // kolom lama, tetap ada
   name: string;
   email: string | null;
   phone: string | null;
@@ -52,40 +49,56 @@ export type Lead = {
   contacted_at: string | null;
   last_follow_up_at: string | null;
 
-  // Audit fields (auto-populated by triggers)
+  // Audit fields (auto by triggers)
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
 
+  // Soft delete
+  deleted_at: string | null;
+
   created_at: string;
   updated_at: string;
+
+  // Join fields (dari view active_leads)
+  creator_display_name?: string | null;
+  creator_role?: string | null;
+  assignee_display_name?: string | null;
+  assignee_phone?: string | null;
 };
 
-/**
- * FOLLOW UP LOG
- */
 export type FollowUpLog = {
   id: string;
   lead_id: string;
   user_id: string;
   contact_date: string;
   contact_method: 'call' | 'whatsapp' | 'email' | 'visit';
-  outcome: 'interested' | 'not_interested' | 'need_info' | 'agreed_survey' | 'survey_done' | 'agreed_booking';
+  outcome:
+    | 'interested'
+    | 'not_interested'
+    | 'need_info'
+    | 'agreed_survey'
+    | 'survey_done'
+    | 'agreed_booking';
   notes: string | null;
   next_follow_up_date: string | null;
-  next_action: 'call' | 'send_info' | 'schedule_survey' | 'send_proposal' | 'close' | null;
+  next_action:
+    | 'call'
+    | 'send_info'
+    | 'schedule_survey'
+    | 'send_proposal'
+    | 'close'
+    | null;
   user_role: string | null;
   user_name: string | null;
+  deleted_at: string | null;
   created_at: string;
 };
 
-/**
- * TEAM MEMBER
- */
 export type TeamMember = {
   id: string;
-  user_id: string;
+  user_id: string;   // ← ini auth.users.id, dipakai untuk assigned_to
   name: string;
   email: string | null;
   phone: string | null;
@@ -95,9 +108,6 @@ export type TeamMember = {
   updated_at: string;
 };
 
-/**
- * LEAD SCORE RULE
- */
 export type LeadScoreRule = {
   id: string;
   user_id: string;
@@ -108,9 +118,6 @@ export type LeadScoreRule = {
   created_at: string;
 };
 
-/**
- * UNIT - With audit trail
- */
 export type Unit = {
   id: string;
   name: string;
@@ -124,53 +131,61 @@ export type Unit = {
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
-/**
- * BOOKING - With audit trail
- */
 export type Booking = {
   id: string;
+  user_id: string;          // kolom lama
   lead_id: string | null;
   unit_id: string | null;
   booking_date: string;
   status: string;
   amount: number;
+  notes: string | null;
+  booking_number: string | null;
+
+  // Audit fields
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
+  deleted_at: string | null;
+
   created_at: string;
   updated_at: string;
+
+  // Relations
   leads?: Lead | null;
   units?: Unit | null;
 };
 
-/**
- * TASK - With audit trail
- */
 export type Task = {
   id: string;
+  user_id: string;          // kolom lama
   title: string;
   description: string | null;
   status: string;
   priority: string;
   due_date: string | null;
   related_lead_id: string | null;
+
+  // Audit fields
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
+  deleted_at: string | null;
+
   created_at: string;
   updated_at: string;
+
+  // Relations
   leads?: Lead | null;
 };
 
-/**
- * EXPENSE - With audit trail
- */
 export type Expense = {
   id: string;
   title: string;
@@ -186,14 +201,23 @@ export type Expense = {
   updated_at: string;
 };
 
-// ============= LEAD SCORING FUNCTIONS =============
+// Untuk soft delete response dari RPC
+export type SoftDeleteResult = {
+  success: boolean;
+  message?: string;
+  error?: string;
+  record_id?: string;
+  deleted_at?: string;
+};
 
-/**
- * Calculate lead score (0-100)
- */
+// ============================================
+// LEAD SCORING
+// ============================================
+
 export function calculateLeadScore(lead: Partial<Lead>): number {
   let score = 0;
 
+  // Budget score (max 40)
   if (lead.budget && lead.budget > 0) {
     if (lead.budget >= 1_000_000_000) score += 40;
     else if (lead.budget >= 500_000_000) score += 30;
@@ -201,12 +225,15 @@ export function calculateLeadScore(lead: Partial<Lead>): number {
     else score += 10;
   }
 
+  // Status score (max 30)
   if (lead.status === 'qualified') score += 30;
   else if (lead.status === 'contacted') score += 15;
   else if (lead.status === 'new') score += 5;
 
+  // Contacted score (max 20)
   if (lead.contacted_at) score += 20;
 
+  // Unit interest score (max 10)
   if (lead.unit_interest && lead.unit_interest.trim() !== '') {
     score += 10;
   }
@@ -214,27 +241,28 @@ export function calculateLeadScore(lead: Partial<Lead>): number {
   return Math.min(score, 100);
 }
 
-/**
- * Get lead grade based on score
- */
 export function getLeadGrade(score: number): 'HOT' | 'WARM' | 'COLD' {
   if (score >= 70) return 'HOT';
   if (score >= 40) return 'WARM';
   return 'COLD';
 }
 
-// ============= COLLABORATIVE DATA FETCHING =============
+// ============================================
+// LEADS - COLLABORATIVE
+// ============================================
 
 /**
- * Get ALL leads (all users can see all leads)
+ * Get ALL leads (semua user bisa lihat semua lead)
+ * Pakai view active_leads yang sudah include join user_profiles
+ * Otomatis filter deleted_at IS NULL via view
  */
-export async function getAllLeads(filters?: { 
-  status?: string; 
-  assignedTo?: string; 
+export async function getAllLeads(filters?: {
+  status?: string;
+  assignedTo?: string;
   createdBy?: string;
 }) {
   let query = supabase
-    .from('leads')
+    .from('active_leads')   // ← pakai VIEW, bukan table langsung
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -254,11 +282,12 @@ export async function getAllLeads(filters?: {
 }
 
 /**
- * Get single lead by ID (no user_id filter)
+ * Get single lead by ID
+ * Tetap filter deleted_at IS NULL via RLS policy
  */
 export async function getLeadById(leadId: string) {
   const { data, error } = await supabase
-    .from('leads')
+    .from('active_leads')   // ← pakai VIEW
     .select('*')
     .eq('id', leadId)
     .single();
@@ -268,13 +297,170 @@ export async function getLeadById(leadId: string) {
 }
 
 /**
- * Get all follow-ups for a lead (collaborative)
+ * Create lead baru
+ * created_by, creator_name → diisi otomatis oleh trigger set_audit_fields()
+ * Tidak perlu pass user_id manual
+ */
+export async function createLead(
+  leadData: Omit<
+    Lead,
+    | 'id'
+    | 'user_id'
+    | 'created_at'
+    | 'updated_at'
+    | 'lead_score'
+    | 'lead_grade'
+    | 'created_by'
+    | 'edited_by'
+    | 'creator_name'
+    | 'editor_name'
+    | 'deleted_at'
+    | 'creator_display_name'
+    | 'creator_role'
+    | 'assignee_display_name'
+    | 'assignee_phone'
+  >
+) {
+  // Hitung score sebelum insert
+  const score = calculateLeadScore(leadData);
+  const grade = getLeadGrade(score);
+
+  // Ambil user_id dari session untuk kolom lama
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User tidak terautentikasi');
+
+  const { data, error } = await supabase
+    .from('leads')
+    .insert({
+      ...leadData,
+      user_id: user.id,     // kolom lama, tetap diisi
+      lead_score: score,
+      lead_grade: grade,
+      // created_by & creator_name → diisi trigger otomatis
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Lead;
+}
+
+/**
+ * Update lead
+ * edited_by, editor_name → diisi otomatis oleh trigger set_edited_by()
+ */
+export async function updateLead(leadId: string, updates: Partial<Lead>) {
+  // Recalculate score jika field relevan berubah
+  const needsRecalc =
+    updates.budget !== undefined ||
+    updates.status !== undefined ||
+    updates.contacted_at !== undefined ||
+    updates.unit_interest !== undefined;
+
+  if (needsRecalc) {
+    const { data: current } = await supabase
+      .from('leads')
+      .select('budget, status, contacted_at, unit_interest')
+      .eq('id', leadId)
+      .single();
+
+    if (current) {
+      const merged = { ...current, ...updates };
+      updates.lead_score = calculateLeadScore(merged);
+      updates.lead_grade = getLeadGrade(updates.lead_score);
+    }
+  }
+
+  // Hapus field view-only agar tidak error saat update
+  const {
+    creator_display_name,
+    creator_role,
+    assignee_display_name,
+    assignee_phone,
+    deleted_at,    // jangan update deleted_at manual, pakai soft_delete()
+    ...safeUpdates
+  } = updates;
+
+  const { data, error } = await supabase
+    .from('leads')
+    .update(safeUpdates)
+    .eq('id', leadId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Lead;
+}
+
+/**
+ * Soft delete lead via RPC
+ * Data tidak hilang, bisa di-restore oleh admin/manager
+ */
+export async function deleteLead(leadId: string): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('soft_delete', {
+      p_table: 'leads',
+      p_id: leadId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) {
+    throw new Error(result.error || 'Soft delete gagal');
+  }
+
+  return result;
+}
+
+/**
+ * Restore lead yang sudah di-soft-delete (admin/manager only)
+ */
+export async function restoreLead(leadId: string): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('restore_record', {
+      p_table: 'leads',
+      p_id: leadId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) {
+    throw new Error(result.error || 'Restore gagal');
+  }
+
+  return result;
+}
+
+/**
+ * Assign lead ke team member
+ * PENTING: value adalah user_id dari team_members (auth.users.id)
+ * bukan team_members.id
+ */
+export async function assignLead(leadId: string, assignedTo: string | null) {
+  const { error } = await supabase
+    .from('leads')
+    .update({ assigned_to: assignedTo })
+    .eq('id', leadId);
+
+  if (error) throw error;
+}
+
+// ============================================
+// FOLLOW UP LOGS - COLLABORATIVE
+// ============================================
+
+/**
+ * Get semua follow-up untuk lead tertentu
+ * Semua user bisa lihat (via RLS policy follow_up_select)
  */
 export async function getFollowUpLogs(leadId: string) {
   const { data, error } = await supabase
     .from('follow_up_logs')
     .select('*')
     .eq('lead_id', leadId)
+    .is('deleted_at', null)          // filter soft delete
     .order('contact_date', { ascending: false });
 
   if (error) throw error;
@@ -282,21 +468,25 @@ export async function getFollowUpLogs(leadId: string) {
 }
 
 /**
- * Add follow-up log (collaborative)
+ * Tambah follow-up log
+ * user_id harus = auth.uid() (dicek via RLS policy follow_up_insert)
  */
 export async function addFollowUpLog(
-  followUp: Omit<FollowUpLog, 'id' | 'created_at' | 'user_role' | 'user_name'>,
+  followUp: Omit<FollowUpLog, 'id' | 'created_at' | 'user_role' | 'user_name' | 'deleted_at'>,
   userId: string
 ) {
   const { data, error } = await supabase
     .from('follow_up_logs')
-    .insert({ ...followUp, user_id: userId })
+    .insert({
+      ...followUp,
+      user_id: userId,    // harus sama dengan auth.uid()
+    })
     .select()
     .single();
 
   if (error) throw error;
 
-  // Update lead's last_follow_up_at
+  // Update lead's last_follow_up_at dan contacted_at
   await supabase
     .from('leads')
     .update({
@@ -309,12 +499,12 @@ export async function addFollowUpLog(
 }
 
 /**
- * Get lead with follow-ups (no user_id filter)
+ * Get lead + follow-ups sekaligus
  */
 export async function getLeadWithFollowUps(leadId: string) {
   const [leadResult, followUpsResult] = await Promise.all([
     supabase
-      .from('leads')
+      .from('active_leads')
       .select('*')
       .eq('id', leadId)
       .single(),
@@ -322,6 +512,7 @@ export async function getLeadWithFollowUps(leadId: string) {
       .from('follow_up_logs')
       .select('*')
       .eq('lead_id', leadId)
+      .is('deleted_at', null)
       .order('contact_date', { ascending: false }),
   ]);
 
@@ -333,90 +524,14 @@ export async function getLeadWithFollowUps(leadId: string) {
   };
 }
 
-// ============= CRUD OPERATIONS =============
+// ============================================
+// TEAM MEMBERS
+// ============================================
 
 /**
- * Create new lead - audit fields auto-populated
- */
-export async function createLead(
-  leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'lead_score' | 'lead_grade' | 'created_by' | 'edited_by' | 'creator_name' | 'editor_name'>
-) {
-  const score = calculateLeadScore(leadData);
-  const grade = getLeadGrade(score);
-
-  const { data, error } = await supabase
-    .from('leads')
-    .insert({
-      ...leadData,
-      lead_score: score,
-      lead_grade: grade,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Lead;
-}
-
-/**
- * Update lead - audit fields auto-updated
- */
-export async function updateLead(leadId: string, updates: Partial<Lead>) {
-  // Recalculate score if needed
-  if (updates.budget !== undefined || updates.status !== undefined || 
-      updates.contacted_at !== undefined || updates.unit_interest !== undefined) {
-    const { data: current } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('id', leadId)
-      .single();
-    
-    if (current) {
-      const merged = { ...current, ...updates };
-      updates.lead_score = calculateLeadScore(merged);
-      updates.lead_grade = getLeadGrade(updates.lead_score);
-    }
-  }
-
-  const { data, error } = await supabase
-    .from('leads')
-    .update(updates)
-    .eq('id', leadId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Lead;
-}
-
-/**
- * Delete lead
- */
-export async function deleteLead(leadId: string) {
-  const { error } = await supabase
-    .from('leads')
-    .delete()
-    .eq('id', leadId);
-
-  if (error) throw error;
-}
-
-/**
- * Assign lead to user
- */
-export async function assignLead(leadId: string, assignedTo: string | null) {
-  const { error } = await supabase
-    .from('leads')
-    .update({ assigned_to: assignedTo })
-    .eq('id', leadId);
-
-  if (error) throw error;
-}
-
-// ============= TEAM MEMBERS (COLLABORATIVE) =============
-
-/**
- * Get all team members (all users can see)
+ * Get semua team member aktif
+ * PENTING untuk AssignLead: gunakan member.user_id (bukan member.id)
+ * sebagai value di Select component
  */
 export async function getTeamMembers() {
   const { data, error } = await supabase
@@ -429,9 +544,6 @@ export async function getTeamMembers() {
   return (data as TeamMember[]) || [];
 }
 
-/**
- * Add team member
- */
 export async function addTeamMember(
   member: Omit<TeamMember, 'id' | 'created_at' | 'updated_at' | 'user_id'>,
   userId: string
@@ -446,11 +558,10 @@ export async function addTeamMember(
   return data as TeamMember;
 }
 
-// ============= USER PROFILES =============
+// ============================================
+// USER PROFILES
+// ============================================
 
-/**
- * Get all user profiles
- */
 export async function getAllUserProfiles() {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -462,9 +573,6 @@ export async function getAllUserProfiles() {
   return (data as UserProfile[]) || [];
 }
 
-/**
- * Get user profile by ID
- */
 export async function getUserProfile(userId: string) {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -476,11 +584,10 @@ export async function getUserProfile(userId: string) {
   return data as UserProfile;
 }
 
-// ============= OTHER ENTITIES (COLLABORATIVE) =============
+// ============================================
+// BOOKINGS - COLLABORATIVE
+// ============================================
 
-/**
- * Get all bookings
- */
 export async function getAllBookings() {
   const { data, error } = await supabase
     .from('bookings')
@@ -489,28 +596,92 @@ export async function getAllBookings() {
       leads:lead_id(*),
       units:unit_id(*)
     `)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return (data as Booking[]) || [];
 }
 
-/**
- * Get all units
- */
+export async function createBooking(
+  bookingData: Omit<
+    Booking,
+    | 'id'
+    | 'created_at'
+    | 'updated_at'
+    | 'created_by'
+    | 'edited_by'
+    | 'creator_name'
+    | 'editor_name'
+    | 'deleted_at'
+    | 'leads'
+    | 'units'
+  >
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User tidak terautentikasi');
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .insert({
+      ...bookingData,
+      user_id: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Booking;
+}
+
+export async function updateBooking(bookingId: string, updates: Partial<Booking>) {
+  // Hapus field relasi agar tidak error
+  const { leads, units, deleted_at, ...safeUpdates } = updates;
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .update(safeUpdates)
+    .eq('id', bookingId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Booking;
+}
+
+export async function deleteBooking(bookingId: string): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('soft_delete', {
+      p_table: 'bookings',
+      p_id: bookingId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) throw new Error(result.error || 'Delete gagal');
+  return result;
+}
+
+// ============================================
+// UNITS - COLLABORATIVE
+// ============================================
+
 export async function getAllUnits() {
   const { data, error } = await supabase
     .from('units')
     .select('*')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return (data as Unit[]) || [];
 }
 
-/**
- * Get all tasks
- */
+// ============================================
+// TASKS - COLLABORATIVE
+// ============================================
+
 export async function getAllTasks() {
   const { data, error } = await supabase
     .from('tasks')
@@ -518,15 +689,75 @@ export async function getAllTasks() {
       *,
       leads:related_lead_id(*)
     `)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return (data as Task[]) || [];
 }
 
-/**
- * Get all expenses
- */
+export async function createTask(
+  taskData: Omit<
+    Task,
+    | 'id'
+    | 'created_at'
+    | 'updated_at'
+    | 'created_by'
+    | 'edited_by'
+    | 'creator_name'
+    | 'editor_name'
+    | 'deleted_at'
+    | 'leads'
+  >
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User tidak terautentikasi');
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({
+      ...taskData,
+      user_id: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Task;
+}
+
+export async function updateTask(taskId: string, updates: Partial<Task>) {
+  const { leads, deleted_at, ...safeUpdates } = updates;
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(safeUpdates)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Task;
+}
+
+export async function deleteTask(taskId: string): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('soft_delete', {
+      p_table: 'tasks',
+      p_id: taskId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) throw new Error(result.error || 'Delete gagal');
+  return result;
+}
+
+// ============================================
+// EXPENSES - COLLABORATIVE
+// ============================================
+
 export async function getAllExpenses() {
   const { data, error } = await supabase
     .from('expenses')
@@ -537,16 +768,85 @@ export async function getAllExpenses() {
   return (data as Expense[]) || [];
 }
 
-// ============= LEGACY FUNCTIONS (kept for compatibility) =============
+// ============================================
+// HISTORY & AUDIT
+// ============================================
 
 /**
- * Get lead score rules
+ * Get history perubahan untuk satu record
  */
-export async function getLeadScoreRules(userId: string) {
+export async function getRecordHistory(
+  tableName: string,
+  recordId: string
+) {
+  const { data, error } = await supabase
+    .from('data_history')
+    .select('*')
+    .eq('table_name', tableName)
+    .eq('record_id', recordId)
+    .order('changed_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get recent activity untuk dashboard
+ */
+export async function getRecentActivity(limit = 20) {
+  const { data, error } = await supabase
+    .from('recent_activity')
+    .select('*')
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get recycle bin (data yang di-soft-delete)
+ */
+export async function getDeletedRecords() {
+  const { data, error } = await supabase
+    .from('deleted_records')
+    .select('*')
+    .order('deleted_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Restore record dari recycle bin (admin/manager only)
+ */
+export async function restoreRecord(
+  tableName: string,
+  recordId: string
+): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('restore_record', {
+      p_table: tableName,
+      p_id: recordId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) throw new Error(result.error || 'Restore gagal');
+  return result;
+}
+
+// ============================================
+// LEAD SCORE RULES (Admin/Manager)
+// ============================================
+
+/**
+ * Get lead score rules (semua user bisa lihat, bukan hanya milik sendiri)
+ */
+export async function getLeadScoreRules() {
   const { data, error } = await supabase
     .from('lead_score_rules')
     .select('*')
-    .eq('user_id', userId)
     .eq('active', true)
     .order('points', { ascending: false });
 
@@ -554,48 +854,10 @@ export async function getLeadScoreRules(userId: string) {
   return (data as LeadScoreRule[]) || [];
 }
 
-/**
- * Initialize default scoring rules
- */
-export async function initializeDefaultScoringRules(userId: string) {
-  const defaultRules = [
-    { category: 'budget', criterion: 'Budget > 1 Miliar', points: 40 },
-    { category: 'budget', criterion: 'Budget 500jt - 1M', points: 30 },
-    { category: 'budget', criterion: 'Budget 100jt - 500jt', points: 20 },
-    { category: 'budget', criterion: 'Budget < 100jt', points: 10 },
-    { category: 'timeline', criterion: 'Status qualified', points: 30 },
-    { category: 'timeline', criterion: 'Status contacted', points: 15 },
-    { category: 'engagement', criterion: 'Sudah dihubungi', points: 20 },
-    { category: 'engagement', criterion: 'Ada unit interest', points: 10 },
-  ];
-
-  for (const rule of defaultRules) {
-    const { data: existing } = await supabase
-      .from('lead_score_rules')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('criterion', rule.criterion)
-      .single();
-
-    if (!existing) {
-      await supabase
-        .from('lead_score_rules')
-        .insert({
-          user_id: userId,
-          ...rule,
-          active: true,
-        });
-    }
-  }
-}
-
-/**
- * Update lead score and grade
- */
 export async function updateLeadScore(leadId: string) {
   const { data: lead, error: fetchError } = await supabase
     .from('leads')
-    .select('*')
+    .select('budget, status, contacted_at, unit_interest')
     .eq('id', leadId)
     .single();
 
@@ -606,10 +868,7 @@ export async function updateLeadScore(leadId: string) {
 
   const { error: updateError } = await supabase
     .from('leads')
-    .update({
-      lead_score: newScore,
-      lead_grade: newGrade,
-    })
+    .update({ lead_score: newScore, lead_grade: newGrade })
     .eq('id', leadId);
 
   if (updateError) throw updateError;
