@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -19,16 +20,34 @@ const supabaseAdmin = createClient(
 );
 
 // Server client for current user verification (uses cookies)
-async function getSupabaseServerClient() {
+function getSupabaseServerClient() {
   const cookieStore = cookies();
   
-  return createClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch (error) {
+            // The `delete` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
         },
       },
     }
@@ -44,7 +63,7 @@ export async function POST(request: Request) {
     // ──────────────────────────────────────────
     // 1. Verify Authentication
     // ──────────────────────────────────────────
-    const supabase = await getSupabaseServerClient();
+    const supabase = getSupabaseServerClient();
     const {
       data: { user },
       error: authError,
@@ -233,26 +252,7 @@ export async function POST(request: Request) {
     console.log(`✅ User profile created successfully`);
 
     // ──────────────────────────────────────────
-    // 7. Log Activity (Optional)
-    // ──────────────────────────────────────────
-    try {
-      await supabaseAdmin.from('activity_logs').insert({
-        user_id: user.id,
-        action: 'create_user',
-        description: `Admin ${profile.name} created new user: ${name} (${email})`,
-        metadata: {
-          new_user_id: authData.user.id,
-          new_user_email: email,
-          new_user_role: role,
-        },
-      });
-    } catch (logError) {
-      // Non-critical error, just log it
-      console.warn('⚠️ Activity log failed:', logError);
-    }
-
-    // ──────────────────────────────────────────
-    // 8. Success Response
+    // 7. Success Response
     // ──────────────────────────────────────────
     return NextResponse.json(
       {
