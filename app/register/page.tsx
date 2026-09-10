@@ -1,4 +1,4 @@
-// app/register/page.tsx - CONVERT to admin-only user creation
+// app/register/page.tsx - REPLACE ENTIRE FILE
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -102,18 +102,17 @@ export default function AdminCreateUserPage() {
     setLoading(true);
 
     try {
-      // 1. Create auth user
+      // Create auth user using admin API
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: form.email,
         password: form.password,
-        email_confirm: true, // Skip email confirmation for admin-created users
+        email_confirm: true,
       });
 
       if (authError) throw authError;
-
       if (!authData.user) throw new Error('Failed to create user');
 
-      // 2. Create user profile
+      // Create user profile
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert({
@@ -201,7 +200,7 @@ export default function AdminCreateUserPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateUser} className="space-y-4">
-              {/* Basic Info */}
+              {/* Name & Email */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name *</Label>
@@ -289,7 +288,7 @@ export default function AdminCreateUserPage() {
                 />
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Buttons */}
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
