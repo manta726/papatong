@@ -1,35 +1,58 @@
+// app/register/page.tsx - CONVERT to admin-only user creation
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/supabase/auth-context';
+import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, ArrowLeft, Shield, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function RegisterPage() {
-  const { user, loading: authLoading, signUp, signIn } = useAuth();
+export default function AdminCreateUserPage() {
+  const { user, profile, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [mounted, setMounted] = useState(false);
+  
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    name: '',
+    phone: '',
+    role: 'sales' as const,
+    position: '',
+    department: '',
+  });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!authLoading && user && mounted) {
-      router.push('/dashboard');
+    if (!authLoading && mounted) {
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      
+      if (!isAdmin) {
+        router.push('/dashboard');
+        toast({
+          title: 'Access Denied',
+          description: 'Only administrators can create new users',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
-  }, [user, authLoading, router, mounted]);
+  }, [user, profile, isAdmin, authLoading, mounted, router, toast]);
 
   if (!mounted || authLoading) {
     return (
@@ -42,14 +65,14 @@ export default function RegisterPage() {
     );
   }
 
-  if (user) {
+  if (!user || !isAdmin) {
     return null;
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       toast({
         title: 'Invalid email',
         description: 'Please enter a valid email address',
@@ -58,7 +81,7 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
+    if (form.password.length < 6) {
       toast({
         title: 'Invalid password',
         description: 'Password must be at least 6 characters',
@@ -67,151 +90,220 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!form.name.trim()) {
       toast({
-        title: 'Passwords do not match',
-        description: 'Please make sure your passwords match',
+        title: 'Name required',
+        description: 'Please enter the user\'s full name',
         variant: 'destructive',
       });
       return;
     }
 
     setLoading(true);
-    const { error } = await signUp(email, password);
 
-    if (error) {
+    try {
+      // 1. Create auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: form.email,
+        password: form.password,
+        email_confirm: true, // Skip email confirmation for admin-created users
+      });
+
+      if (authError) throw authError;
+
+      if (!authData.user) throw new Error('Failed to create user');
+
+      // 2. Create user profile
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: authData.user.id,
+          email: form.email,
+          name: form.name,
+          phone: form.phone || null,
+          role: form.role,
+          position: form.position || null,
+          department: form.department || null,
+          created_by: user.id,
+          is_active: true,
+        });
+
+      if (profileError) {
+        // Rollback: delete auth user if profile creation fails
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw profileError;
+      }
+
       toast({
-        title: 'Sign up failed',
-        description: error,
+        title: 'User created successfully',
+        description: `${form.name} has been added to the system`,
+      });
+
+      // Reset form
+      setForm({
+        email: '',
+        password: '',
+        name: '',
+        phone: '',
+        role: 'sales',
+        position: '',
+        department: '',
+      });
+
+    } catch (error) {
+      console.error('User creation error:', error);
+      toast({
+        title: 'Failed to create user',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
         variant: 'destructive',
       });
-      setLoading(false);
-    } else {
-      toast({
-        title: 'Account created!',
-        description: 'Signing you in...',
-      });
-
-      const { error: signInError } = await signIn(email, password);
-      if (!signInError) {
-        // Router push happens automatically via useEffect
-      } else {
-        toast({
-          title: 'Created successfully',
-          description: 'Please sign in with your credentials',
-          variant: 'default',
-        });
-        router.push('/login');
-      }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
-        <Card className="border-border/50 shadow-lg">
-          <CardHeader className="space-y-3">
-            {/* Logo */}
-            <div className="flex justify-center">
-              <Image
-                src="/logo.png"
-                alt="Papatong CRM Logo"
-                width={64}
-                height={64}
-                className="object-contain w-16 h-16"
-                priority
-              />
-            </div>
-            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
-            <p className="text-sm text-muted-foreground text-center">
-              Create account to get started
-            </p>
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-2xl mx-auto py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Shield className="w-6 h-6" />
+              Create New User
+            </h1>
+            <p className="text-muted-foreground">Add a new team member to the system</p>
+          </div>
+        </div>
+
+        {/* Admin Notice */}
+        <Alert className="mb-6">
+          <Shield className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Admin Area:</strong> Only administrators can create new user accounts. 
+            The new user will receive their login credentials and can start using the system immediately.
+          </AlertDescription>
+        </Alert>
+
+        {/* Create User Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              User Information
+            </CardTitle>
+            <CardDescription>
+              Fill in the details for the new team member
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSignUp} className="space-y-4">
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-10 rounded-lg"
-                />
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="h-10 rounded-lg"
-                />
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password" className="text-sm font-medium">
-                  Confirm Password
-                </Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="h-10 rounded-lg"
-                />
-              </div>
-
-              {/* Sign Up Button */}
-              <Button
-                type="submit"
-                className="w-full h-10 mt-6"
-                disabled={loading}
-              >
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Sign Up
-              </Button>
-
-              {/* Divider */}
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/50"></div>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Enter full name"
+                    required
+                  />
                 </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Already have an account?
-                  </span>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="user@company.com"
+                    required
+                  />
                 </div>
               </div>
 
-              {/* Sign In Link */}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-10"
-                onClick={() => router.push('/login')}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Sign In
-              </Button>
+              {/* Password & Phone */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Temporary Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Minimum 6 characters"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="Phone number"
+                  />
+                </div>
+              </div>
+
+              {/* Role & Position */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role *</Label>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as any })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="support">Support</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
+                    value={form.position}
+                    onChange={(e) => setForm({ ...form, position: e.target.value })}
+                    placeholder="e.g. Senior Sales Executive"
+                  />
+                </div>
+              </div>
+
+              {/* Department */}
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Input
+                  id="department"
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  placeholder="e.g. Sales, Marketing, Operations"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push('/dashboard')}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading} className="flex-1">
+                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create User
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
