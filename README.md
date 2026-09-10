@@ -77,22 +77,6 @@
 - **Analytics:** Vercel Analytics
 - **Monitoring:** Vercel Speed Insights
 
----
-
-## 🚀 Getting Started
-
-### **Prerequisites**
-
-- Node.js 18+ dan npm/yarn
-- Akun Supabase (gratis)
-- Akun Vercel (opsional, untuk deployment)
-
-### **1. Clone Repository**
-
-```bash
-git clone https://github.com/manta726/papatong.git
-cd papatong
-
 ## 📸 Screenshots
 
 ### Dashboard
@@ -108,3 +92,18 @@ cd papatong
 [![React](https://img.shields.io/badge/React-18.2-blue?logo=react)](https://react.dev)
 [![Tailwind](https://img.shields.io/badge/Tailwind-3.4-blue?logo=tailwindcss)](https://tailwindcss.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)](https://www.postgresql.org/)
+---
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+
+- Node.js 18+ dan npm/yarn
+- Akun Supabase (gratis)
+- Akun Vercel (opsional, untuk deployment)
+
+### **1. Clone Repository**
+
+```bash
+git clone https://github.com/manta726/papatong.git
+cd papatong
