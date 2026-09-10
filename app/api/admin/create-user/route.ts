@@ -1,9 +1,12 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-// Supabase Admin Client (service_role key)
+// ============================================
+// SUPABASE CLIENTS
+// ============================================
+
+// Admin client with service_role key (can bypass RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -15,50 +18,100 @@ const supabaseAdmin = createClient(
   }
 );
 
+// Server client for current user verification (uses cookies)
+async function getSupabaseServerClient() {
+  const cookieStore = cookies();
+  
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+}
+
+// ============================================
+// POST /api/admin/create-user
+// ============================================
+
 export async function POST(request: Request) {
   try {
-    // 1. Verify current user is authenticated
-    const supabase = createRouteHandlerClient({ cookies });
+    // ──────────────────────────────────────────
+    // 1. Verify Authentication
+    // ──────────────────────────────────────────
+    const supabase = await getSupabaseServerClient();
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
+      console.error('❌ Auth error:', authError?.message);
       return NextResponse.json(
         { error: 'Unauthorized - Please login first' },
         { status: 401 }
       );
     }
 
-    // 2. Check if user is admin
-    const { data: profile } = await supabase
+    // ──────────────────────────────────────────
+    // 2. Verify Admin Role
+    // ──────────────────────────────────────────
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('role, is_active, name')
       .eq('id', user.id)
       .single();
 
-    if (!profile || profile.role !== 'admin' || !profile.is_active) {
+    if (profileError) {
+      console.error('❌ Profile fetch error:', profileError.message);
       return NextResponse.json(
-        { error: 'Forbidden - Only administrators can create users' },
+        { error: 'Failed to verify user permissions' },
+        { status: 500 }
+      );
+    }
+
+    if (!profile || profile.role !== 'admin' || !profile.is_active) {
+      console.warn(`⚠️ Unauthorized access attempt by user: ${user.email}`);
+      return NextResponse.json(
+        { error: 'Forbidden - Only active administrators can create users' },
         { status: 403 }
       );
     }
 
     console.log(`✅ Admin verified: ${profile.name} (${user.email})`);
 
-    // 3. Get form data
-    const body = await request.json();
-    const { email, password, name, phone, role, position, department } = body;
-
-    // 4. Validate required fields
-    if (!email || !password || !name || !role) {
+    // ──────────────────────────────────────────
+    // 3. Parse & Validate Request Body
+    // ──────────────────────────────────────────
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Missing required fields: email, password, name, role' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
 
-    // Validate email format
+    const { email, password, name, phone, role, position, department } = body;
+
+    // Required fields validation
+    if (!email || !password || !name || !role) {
+      return NextResponse.json(
+        {
+          error: 'Missing required fields',
+          required: ['email', 'password', 'name', 'role'],
+        },
+        { status: 400 }
+      );
+    }
+
+    // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -67,70 +120,83 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate password length
+    // Password length validation
     if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: 'Password must be at least 6 characters long' },
         { status: 400 }
       );
     }
 
-    // Validate role
+    // Role validation
     const validRoles = ['admin', 'manager', 'sales', 'support'];
     if (!validRoles.includes(role)) {
       return NextResponse.json(
-        { error: `Invalid role. Must be one of: ${validRoles.join(', ')}` },
+        {
+          error: 'Invalid role',
+          validRoles,
+        },
         { status: 400 }
       );
     }
 
-    // 5. Check if user already exists
+    // ──────────────────────────────────────────
+    // 4. Check for Existing User
+    // ──────────────────────────────────────────
     const { data: existingUser } = await supabaseAdmin
       .from('user_profiles')
       .select('email')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
+      console.warn(`⚠️ Attempt to create duplicate user: ${email}`);
       return NextResponse.json(
-        { error: 'A user with this email already exists' },
+        { error: `A user with email "${email}" already exists` },
         { status: 409 }
       );
     }
 
-    console.log(`🔄 Creating user: ${email} (${name})`);
+    console.log(`🔄 Creating new user: ${email} (${name})`);
 
-    // 6. Create auth user with admin client
-    const { data: authData, error: authError } =
+    // ──────────────────────────────────────────
+    // 5. Create Auth User
+    // ──────────────────────────────────────────
+    const { data: authData, error: authCreateError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: true, // Skip email verification
+        email_confirm: true, // Auto-confirm email
         user_metadata: {
           name,
           role,
         },
       });
 
-    if (authError) {
-      console.error('❌ Auth creation error:', authError);
+    if (authCreateError) {
+      console.error('❌ Auth user creation error:', authCreateError);
       return NextResponse.json(
-        { error: authError.message || 'Failed to create authentication account' },
+        {
+          error: 'Failed to create authentication account',
+          details: authCreateError.message,
+        },
         { status: 400 }
       );
     }
 
     if (!authData.user) {
       return NextResponse.json(
-        { error: 'Failed to create user account' },
+        { error: 'User creation returned no data' },
         { status: 500 }
       );
     }
 
     console.log(`✅ Auth user created: ${authData.user.id}`);
 
-    // 7. Create user profile
-    const { error: profileError } = await supabaseAdmin
+    // ──────────────────────────────────────────
+    // 6. Create User Profile
+    // ──────────────────────────────────────────
+    const { error: profileCreateError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         id: authData.user.id,
@@ -140,59 +206,97 @@ export async function POST(request: Request) {
         role,
         position: position || null,
         department: department || null,
-        created_by: user.id, // Admin's ID
+        created_by: user.id, // The admin who created this user
         is_active: true,
       });
 
-    if (profileError) {
-      console.error('❌ Profile creation error:', profileError);
+    if (profileCreateError) {
+      console.error('❌ Profile creation error:', profileCreateError);
 
-      // Rollback: delete auth user if profile creation fails
+      // Rollback: Delete auth user if profile creation fails
       try {
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        console.log('🔄 Auth user deleted (rollback)');
+        console.log('🔄 Rolled back auth user creation');
       } catch (rollbackError) {
         console.error('❌ Rollback failed:', rollbackError);
       }
 
       return NextResponse.json(
-        { error: profileError.message || 'Failed to create user profile' },
+        {
+          error: 'Failed to create user profile',
+          details: profileCreateError.message,
+        },
         { status: 500 }
       );
     }
 
     console.log(`✅ User profile created successfully`);
 
-    // 8. Log activity (optional)
-    await supabaseAdmin.from('activity_logs').insert({
-      user_id: user.id,
-      action: 'create_user',
-      description: `Admin ${profile.name} created new user: ${name} (${email})`,
-      metadata: {
-        new_user_id: authData.user.id,
-        new_user_email: email,
-        new_user_role: role,
-      },
-    }).catch(err => console.warn('Activity log failed:', err));
+    // ──────────────────────────────────────────
+    // 7. Log Activity (Optional)
+    // ──────────────────────────────────────────
+    try {
+      await supabaseAdmin.from('activity_logs').insert({
+        user_id: user.id,
+        action: 'create_user',
+        description: `Admin ${profile.name} created new user: ${name} (${email})`,
+        metadata: {
+          new_user_id: authData.user.id,
+          new_user_email: email,
+          new_user_role: role,
+        },
+      });
+    } catch (logError) {
+      // Non-critical error, just log it
+      console.warn('⚠️ Activity log failed:', logError);
+    }
 
-    // 9. Success response
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: authData.user.id,
-        email,
-        name,
-        role,
-        created_at: authData.user.created_at,
-      },
-      message: `User ${name} created successfully. They can now login with email: ${email}`,
-    });
-
-  } catch (error: any) {
-    console.error('❌ Create user error:', error);
+    // ──────────────────────────────────────────
+    // 8. Success Response
+    // ──────────────────────────────────────────
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        success: true,
+        user: {
+          id: authData.user.id,
+          email,
+          name,
+          role,
+          created_at: authData.user.created_at,
+        },
+        message: `User "${name}" has been created successfully. They can now login with email: ${email}`,
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    // ──────────────────────────────────────────
+    // Global Error Handler
+    // ──────────────────────────────────────────
+    console.error('❌ Unexpected error in create-user API:', error);
+    
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
+}
+
+// ============================================
+// OPTIONAL: GET endpoint for testing
+// ============================================
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      message: 'Admin Create User API',
+      method: 'POST',
+      requiredFields: ['email', 'password', 'name', 'role'],
+      optionalFields: ['phone', 'position', 'department'],
+      authentication: 'Required (Admin only)',
+    },
+    { status: 200 }
+  );
 }
