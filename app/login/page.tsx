@@ -1,4 +1,4 @@
-// app/login/page.tsx - COMPLETE VERSION WITH ADMIN BUTTON
+// app/login/page.tsx - MODERN TAB SYSTEM
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, Mail, Lock, Shield, Crown } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Mail, Lock, Users, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -17,9 +18,12 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState('user');
+  
+  // Separate form states for each tab
+  const [userForm, setUserForm] = useState({ email: '', password: '' });
+  const [adminForm, setAdminForm] = useState({ email: '', password: '' });
 
   useEffect(() => {
     setMounted(true);
@@ -27,9 +31,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user && mounted) {
-      router.push('/dashboard');
+      // Different redirects based on which tab was used
+      if (activeTab === 'admin') {
+        router.push('/register'); // Admin goes to user management
+      } else {
+        router.push('/dashboard'); // User goes to dashboard
+      }
     }
-  }, [user, authLoading, router, mounted]);
+  }, [user, authLoading, router, mounted, activeTab]);
 
   if (!mounted || authLoading) {
     return (
@@ -44,10 +53,12 @@ export default function LoginPage() {
 
   if (user) return null;
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, type: 'user' | 'admin') => {
     e.preventDefault();
-
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    
+    const form = type === 'admin' ? adminForm : userForm;
+    
+    if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       toast({
         title: 'Invalid email',
         description: 'Please enter a valid email address',
@@ -56,7 +67,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (password.length < 6) {
+    if (form.password.length < 6) {
       toast({
         title: 'Invalid password',
         description: 'Password must be at least 6 characters',
@@ -65,8 +76,10 @@ export default function LoginPage() {
       return;
     }
 
+    setActiveTab(type); // Remember which tab was used
     setLoading(true);
-    const { error } = await signIn(email, password);
+    
+    const { error } = await signIn(form.email, form.password);
 
     if (error) {
       toast({
@@ -74,28 +87,28 @@ export default function LoginPage() {
         description: error,
         variant: 'destructive',
       });
+      setLoading(false);
     } else {
+      const welcomeMessage = type === 'admin' 
+        ? 'Welcome Admin! Redirecting to user management...'
+        : 'Welcome back! Redirecting to dashboard...';
+        
       toast({
-        title: 'Welcome back!',
-        description: 'Redirecting to dashboard...',
+        title: 'Success!',
+        description: welcomeMessage,
       });
+      // Don't set loading to false here, let useEffect handle redirect
     }
-    setLoading(false);
-  };
-
-  const handleAdminAccess = () => {
-    router.push('/register');
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Main Login Card */}
-        <Card className="shadow-lg border-0 bg-white dark:bg-gray-800">
-          <CardHeader className="space-y-6 text-center pb-8">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl border-0 bg-white dark:bg-gray-800">
+          <CardHeader className="text-center pb-6">
             {/* Logo */}
-            <div className="flex justify-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
                 <Image
                   src="/logo.png"
                   alt="Papatong CRM"
@@ -106,118 +119,149 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Welcome Back
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Sign in to your account
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Welcome Back
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              Choose your login type to continue
+            </p>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSignIn} className="space-y-4">
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="pl-10 h-11"
-                  />
+          <CardContent>
+            <Tabs defaultValue="user" className="space-y-4">
+              {/* Tab Navigation */}
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="user" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  User Login
+                </TabsTrigger>
+                <TabsTrigger value="admin" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Admin Login
+                </TabsTrigger>
+              </TabsList>
+
+              {/* User Login Tab */}
+              <TabsContent value="user" className="space-y-4">
+                <div className="text-center py-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Access your dashboard and manage leads
+                  </p>
                 </div>
-              </div>
+                
+                <form onSubmit={(e) => handleSubmit(e, 'user')} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="user-email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="user-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={userForm.email}
+                        onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                        required
+                        className="pl-10 h-11"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
 
-              {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="pl-10 h-11"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="user-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="user-password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={userForm.password}
+                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                        required
+                        className="pl-10 h-11"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-11 mt-6"
+                  >
+                    {loading && activeTab === 'user' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Sign In as User
+                  </Button>
+                </form>
+              </TabsContent>
+
+              {/* Admin Login Tab */}
+              <TabsContent value="admin" className="space-y-4">
+                <div className="text-center py-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                    <Shield className="w-4 h-4" />
+                    Administrator Access
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Manage users and system settings
+                  </p>
                 </div>
-              </div>
+                
+                <form onSubmit={(e) => handleSubmit(e, 'admin')} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-email">Admin Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="admin-email"
+                        type="email"
+                        placeholder="Enter admin email"
+                        value={adminForm.email}
+                        onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                        required
+                        className="pl-10 h-11"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
 
-              {/* Sign In Button */}
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 mt-6"
-              >
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Sign In
-              </Button>
-            </form>
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-password">Admin Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="admin-password"
+                        type="password"
+                        placeholder="Enter admin password"
+                        value={adminForm.password}
+                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                        required
+                        className="pl-10 h-11"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
 
-            {/* Contact Admin */}
-            <div className="text-center pt-4 border-t">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Need an account?</span>
-                  <br />
-                  Contact your administrator
-                </p>
-              </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-11 mt-6 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {loading && activeTab === 'admin' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Sign In as Admin
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            {/* Footer */}
+            <div className="text-center mt-6 pt-4 border-t">
+              <p className="text-xs text-gray-500">
+                Papatong CRM © 2024
+              </p>
             </div>
           </CardContent>
         </Card>
-
-        {/* Admin Panel Access Card */}
-        <Card className="shadow-lg border-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-6">
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                  Administrator Access
-                </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Manage users and system settings
-                </p>
-              </div>
-
-              <Button
-                onClick={handleAdminAccess}
-                variant="outline"
-                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Access Admin Panel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            Papatong CRM © 2026
-          </p>
-        </div>
       </div>
     </div>
   );
