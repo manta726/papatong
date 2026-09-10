@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx - CLEAN REVISED VERSION
+// app/dashboard/page.tsx - REVISED WITH ADMIN CREATE USER
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare,
   Wallet, TrendingUp, Loader2, AlertCircle,
-  UserPlus, Users2, ArrowRight,
+  UserPlus, Users2, ArrowRight, Shield,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -40,8 +40,7 @@ type DashboardData = {
 };
 
 // ============================================
-// ADMIN QUICK ACCESS — Versi Minimal & Clean
-// Tidak annoying, hanya 1 baris di header
+// ADMIN BAR - Clean & Minimal
 // ============================================
 
 function AdminBar() {
@@ -49,16 +48,17 @@ function AdminBar() {
   if (!isAdmin || !profile) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-primary/8 border border-primary/20">
+    <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
       <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium text-primary">
+        <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <span className="font-medium text-blue-900 dark:text-blue-100">
           {profile.name}
         </span>
         <Badge
           variant="outline"
-          className="text-xs border-primary/30 text-primary bg-primary/10"
+          className="text-xs border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30"
         >
-          Admin
+          Administrator
         </Badge>
       </div>
       <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ function AdminBar() {
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+          className="h-7 text-xs text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-900/50"
         >
           <Link href="/dashboard/users" className="flex items-center gap-1.5">
             <Users2 className="w-3.5 h-3.5" />
@@ -77,11 +77,11 @@ function AdminBar() {
         <Button
           asChild
           size="sm"
-          className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+          className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
         >
-          <Link href="/register" className="flex items-center gap-1.5">
+          <Link href="/admin/create-user" className="flex items-center gap-1.5">
             <UserPlus className="w-3.5 h-3.5" />
-            Add User
+            Create User
           </Link>
         </Button>
       </div>
@@ -285,14 +285,14 @@ export default function DashboardPage() {
             Dashboard
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Selamat datang,{' '}
+            Welcome back,{' '}
             <span className="font-medium text-foreground">
               {profile?.name ?? user.email}
             </span>
           </p>
         </div>
 
-        {/* ✅ Admin bar — minimal, tidak annoying */}
+        {/* ✅ Admin bar - clean & minimal */}
         <AdminBar />
       </div>
 
@@ -313,7 +313,7 @@ export default function DashboardPage() {
             {Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="p-5 h-[100px]">
-                  <div className="animate-shimmer-warm h-full rounded-md" />
+                  <div className="animate-pulse bg-muted h-full rounded-md" />
                 </CardContent>
               </Card>
             ))}
@@ -322,7 +322,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* ── Stats Grid ── */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatsCard
               label="Total Leads"
               value={data.leads.length}
@@ -355,7 +355,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Revenue & Expenses ── */}
-          <div className="grid gap-4 sm:grid-cols-2 animate-fade-in">
+          <div className="grid gap-4 sm:grid-cols-2">
             <StatsCard
               label="Total Revenue"
               value={totalRevenue}
@@ -373,20 +373,20 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Charts ── */}
-          <div className="grid gap-4 lg:grid-cols-2 animate-fade-in">
-            {/* Revenue vs Expenses — full width */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Revenue vs Expenses */}
             <Card className="lg:col-span-2 border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Revenue vs Expenses</CardTitle>
                 <CardDescription className="text-xs">
-                  6 bulan terakhir
+                  Last 6 months
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {trendData.every((d) => d.revenue === 0 && d.expenses === 0) ? (
                   <div className="flex items-center justify-center h-[280px]">
                     <p className="text-sm text-muted-foreground">
-                      Belum ada data
+                      No data available
                     </p>
                   </div>
                 ) : (
@@ -420,13 +420,13 @@ export default function DashboardPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Lead Sources</CardTitle>
                 <CardDescription className="text-xs">
-                  Asal lead masuk
+                  Where leads come from
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {sourceData.length === 0 ? (
                   <div className="flex items-center justify-center h-[230px]">
-                    <p className="text-sm text-muted-foreground">Belum ada lead</p>
+                    <p className="text-sm text-muted-foreground">No leads yet</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={230}>
@@ -455,13 +455,13 @@ export default function DashboardPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Pipeline Status</CardTitle>
                 <CardDescription className="text-xs">
-                  Distribusi status lead
+                  Lead status distribution
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {statusData.length === 0 ? (
                   <div className="flex items-center justify-center h-[230px]">
-                    <p className="text-sm text-muted-foreground">Belum ada lead</p>
+                    <p className="text-sm text-muted-foreground">No leads yet</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={230}>
@@ -479,7 +479,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Recent Activity ── */}
-          <div className="grid gap-4 lg:grid-cols-2 animate-fade-in">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Recent Leads */}
             <Card className="border-border/50">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -499,7 +499,7 @@ export default function DashboardPage() {
               <CardContent className="p-0">
                 {data.leads.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    Belum ada lead
+                    No leads yet
                   </p>
                 ) : (
                   data.leads.slice(0, 5).map((lead) => (
@@ -548,7 +548,7 @@ export default function DashboardPage() {
               <CardContent className="p-0">
                 {data.tasks.filter((t) => t.status !== 'done').length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    Tidak ada task pending
+                    No pending tasks
                   </p>
                 ) : (
                   data.tasks
