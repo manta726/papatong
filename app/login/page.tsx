@@ -103,8 +103,8 @@ export default function LoginPage() {
                 <Image
                   src="/logo.png"
                   alt="Papatong CRM"
-                  width={32}
-                  height={32}
+                  width={38}
+                  height={38}
                   className="object-contain"
                   priority
                 />
