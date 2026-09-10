@@ -1,93 +1,117 @@
+/* globals.css - TEMA COKLAT SUSU + PUTIH WARM */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ===== CSS VARIABLES ===== */
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    /* ── Background: Putih Warm / Krem ── */
+    --background: 36 33% 97%;        /* #FAF8F5 - krem sangat terang */
+    --foreground: 20 25% 15%;        /* #2C2018 - coklat espresso */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    /* ── Card: Putih Warm ── */
+    --card: 36 30% 99%;              /* #FDFCFB - hampir putih warm */
+    --card-foreground: 20 25% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    /* ── Popover ── */
+    --popover: 36 30% 99%;
+    --popover-foreground: 20 25% 15%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 100%;
+    /* ── Primary: Coklat Susu / Caramel ── */
+    --primary: 25 55% 45%;           /* #A86832 - coklat kayu medium */
+    --primary-foreground: 36 60% 97%; /* putih warm */
 
-    --secondary: 210 16% 93%;
-    --secondary-foreground: 222 47% 11%;
+    /* ── Secondary: Coklat Muda / Latte ── */
+    --secondary: 30 25% 90%;         /* #EDE5DC - latte terang */
+    --secondary-foreground: 20 25% 25%;
 
-    --muted: 210 16% 95%;
-    --muted-foreground: 215 16% 47%;
+    /* ── Muted: Krem / Beige ── */
+    --muted: 33 20% 93%;             /* #F2EDE6 - beige */
+    --muted-foreground: 25 15% 50%;  /* coklat abu netral */
 
-    --accent: 199 89% 94%;
-    --accent-foreground: 199 89% 30%;
+    /* ── Accent: Caramel Muda ── */
+    --accent: 30 50% 92%;            /* #F5E9DB - caramel sangat muda */
+    --accent-foreground: 25 55% 35%; /* coklat kayu gelap */
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    /* ── Destructive: Merah Bata (cocok dengan tema warm) ── */
+    --destructive: 5 65% 48%;        /* #CC3B26 - merah bata */
+    --destructive-foreground: 36 60% 97%;
 
-    --success: 142 71% 45%;
+    /* ── Success: Hijau Sage (natural, cocok warm) ── */
+    --success: 145 40% 40%;          /* #3D8C5A - hijau sage */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    /* ── Warning: Amber Warm ── */
+    --warning: 35 85% 50%;           /* #E8920D - amber */
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 199 89% 48%;
+    /* ── Border: Coklat Muda / Tan ── */
+    --border: 30 20% 85%;            /* #DDD3C7 - tan terang */
+    --input: 30 20% 85%;
+    --ring: 25 55% 45%;              /* sama dengan primary */
 
-    --chart-1: 199 89% 48%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* ── Charts: Warm Palette ── */
+    --chart-1: 25 55% 45%;           /* coklat kayu - primary */
+    --chart-2: 145 40% 40%;          /* hijau sage */
+    --chart-3: 35 85% 50%;           /* amber */
+    --chart-4: 15 60% 50%;           /* terra cotta */
+    --chart-5: 270 35% 55%;          /* lavender muted */
 
     --radius: 0.625rem;
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 20% 98%;
+    /* ── Background: Coklat Espresso Gelap ── */
+    --background: 20 30% 8%;         /* #181008 - espresso gelap */
+    --foreground: 36 40% 92%;        /* #F0E8DC - krem hangat */
 
-    --card: 222 47% 10%;
-    --card-foreground: 210 20% 98%;
+    /* ── Card: Coklat Gelap (sedikit lebih terang) ── */
+    --card: 20 28% 12%;              /* #221810 - coklat dark */
+    --card-foreground: 36 40% 92%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 20% 98%;
+    /* ── Popover ── */
+    --popover: 20 28% 12%;
+    --popover-foreground: 36 40% 92%;
 
-    --primary: 199 89% 52%;
-    --primary-foreground: 0 0% 100%;
+    /* ── Primary: Coklat Susu Terang ── */
+    --primary: 28 65% 60%;           /* #C98A4A - caramel terang */
+    --primary-foreground: 20 30% 8%; /* gelap */
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 20% 98%;
+    /* ── Secondary: Coklat Medium ── */
+    --secondary: 20 25% 18%;         /* #332318 - coklat gelap */
+    --secondary-foreground: 36 40% 85%;
 
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 65%;
+    /* ── Muted ── */
+    --muted: 20 22% 15%;             /* #2A1C12 */
+    --muted-foreground: 30 20% 60%;  /* coklat abu medium */
 
-    --accent: 199 89% 20%;
-    --accent-foreground: 199 89% 80%;
+    /* ── Accent: Caramel Gelap ── */
+    --accent: 25 40% 22%;            /* #3D2A18 - caramel gelap */
+    --accent-foreground: 28 65% 72%; /* caramel terang */
 
-    --destructive: 0 63% 42%;
-    --destructive-foreground: 0 0% 98%;
+    /* ── Destructive ── */
+    --destructive: 5 60% 42%;
+    --destructive-foreground: 36 40% 95%;
 
-    --success: 142 71% 40%;
+    /* ── Success ── */
+    --success: 145 40% 38%;
     --success-foreground: 0 0% 98%;
 
-    --warning: 38 92% 45%;
+    /* ── Warning ── */
+    --warning: 35 80% 48%;
     --warning-foreground: 0 0% 98%;
 
-    --border: 217 33% 18%;
-    --input: 217 33% 20%;
-    --ring: 199 89% 52%;
+    /* ── Border: Coklat Medium ── */
+    --border: 20 22% 20%;            /* #352519 */
+    --input: 20 22% 22%;
+    --ring: 28 65% 60%;
 
-    --chart-1: 199 89% 52%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* ── Charts ── */
+    --chart-1: 28 65% 60%;           /* caramel */
+    --chart-2: 145 40% 45%;          /* hijau sage */
+    --chart-3: 35 80% 55%;           /* amber */
+    --chart-4: 15 55% 55%;           /* terra cotta */
+    --chart-5: 270 30% 60%;          /* lavender muted */
   }
 }
 
@@ -100,16 +124,32 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+
+    /* ✅ Background gradient: warm coksu */
     background-image:
-      radial-gradient(circle at 20% 50%, rgba(199, 210, 254, 0.08), transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(147, 197, 253, 0.08), transparent 50%);
+      radial-gradient(
+        circle at 20% 30%,
+        rgba(168, 104, 50, 0.05),   /* coklat kayu subtle */
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 80% 70%,
+        rgba(232, 146, 13, 0.04),   /* amber subtle */
+        transparent 50%
+      );
     background-attachment: fixed;
+  }
+
+  /* Heading dengan warna warm */
+  h1, h2, h3 {
+    @apply tracking-tight;
+    color: hsl(var(--foreground));
   }
 }
 
 /* ===== COMPONENTS ===== */
 @layer components {
-  /* Scrollbar Styling */
+  /* Scrollbar: Tone warm */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -120,14 +160,15 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    background: hsl(25 30% 70%);
+    border-radius: 9999px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    background: hsl(25 40% 55%);
   }
 
-  /* Sidebar Styles */
+  /* Sidebar */
   .sidebar-nav-item {
     @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium;
     @apply transition-all duration-200 ease-in-out;
@@ -135,21 +176,51 @@
   }
 
   .sidebar-nav-item-active {
-    @apply bg-primary text-primary-foreground shadow-md hover:shadow-lg;
+    /* ✅ Aktif: coklat kayu dengan shadow warm */
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 8px hsl(25 55% 45% / 0.35);
+  }
+
+  .sidebar-nav-item-active:hover {
+    background: hsl(25 55% 40%);
+    box-shadow: 0 4px 12px hsl(25 55% 45% / 0.45);
   }
 
   .sidebar-nav-item-inactive {
-    @apply text-muted-foreground hover:bg-accent hover:text-foreground;
-    @apply dark:text-slate-300 dark:hover:bg-slate-800;
+    @apply text-muted-foreground;
+    @apply hover:text-foreground;
   }
 
-  /* Dashboard Cards */
+  .sidebar-nav-item-inactive:hover {
+    background: hsl(var(--accent));
+  }
+
+  /* Dark mode sidebar inactive */
+  .dark .sidebar-nav-item-inactive {
+    color: hsl(30 20% 65%);
+  }
+
+  .dark .sidebar-nav-item-inactive:hover {
+    background: hsl(20 25% 18%);
+    color: hsl(36 40% 88%);
+  }
+
+  /* Dashboard Cards: warm border */
   .dashboard-card {
-    @apply rounded-lg border border-border/50 bg-card;
-    @apply hover:shadow-md transition-shadow duration-200;
+    @apply rounded-lg border bg-card;
+    border-color: hsl(30 20% 88%);
+    @apply hover:shadow-md transition-all duration-200;
+    /* Subtle warm shadow */
+    box-shadow: 0 1px 3px hsl(25 30% 70% / 0.15);
   }
 
-  /* Recent Activity Items */
+  .dark .dashboard-card {
+    border-color: hsl(20 22% 20%);
+    box-shadow: 0 1px 3px hsl(20 30% 5% / 0.4);
+  }
+
+  /* Activity items */
   .activity-item {
     @apply flex items-center justify-between px-6 py-3;
     @apply border-b border-border last:border-0;
@@ -157,58 +228,78 @@
   }
 
   .activity-item-title {
-    @apply text-sm font-medium group-hover:text-primary transition-colors;
+    @apply text-sm font-medium transition-colors;
+  }
+
+  .activity-item-title:hover {
+    color: hsl(var(--primary));
+  }
+
+  /* ✅ Badge warm untuk role admin */
+  .badge-warm {
+    background: hsl(30 50% 92%);
+    color: hsl(25 55% 35%);
+    border: 1px solid hsl(30 30% 80%);
+  }
+
+  .dark .badge-warm {
+    background: hsl(25 40% 20%);
+    color: hsl(28 65% 70%);
+    border: 1px solid hsl(25 30% 30%);
+  }
+
+  /* ✅ Button primary override: pastikan warm */
+  .btn-warm-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 1px 3px hsl(25 55% 45% / 0.3);
+    transition: all 0.2s;
+  }
+
+  .btn-warm-primary:hover {
+    background: hsl(25 55% 38%);
+    box-shadow: 0 3px 8px hsl(25 55% 45% / 0.4);
   }
 }
 
 /* ===== ANIMATIONS ===== */
 @layer utilities {
-  /* Keyframes */
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
   }
 
-  /* Animation Utilities */
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+  /* ✅ Shimmer warm untuk loading state */
+  @keyframes shimmerWarm {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
   }
 
-  .animate-slide-up {
-    animation: slideUp 0.4s ease-out;
+  .animate-fade-in  { animation: fadeIn 0.3s ease-out; }
+  .animate-slide-up { animation: slideUp 0.4s ease-out; }
+  .animate-scale-in { animation: scaleIn 0.2s ease-out; }
+
+  .animate-shimmer-warm {
+    background: linear-gradient(
+      90deg,
+      hsl(33 20% 93%) 25%,
+      hsl(30 30% 87%) 50%,
+      hsl(33 20% 93%) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmerWarm 1.5s infinite;
   }
 
-  .animate-scale-in {
-    animation: scaleIn 0.2s ease-out;
-  }
-
-  /* Responsive Utilities */
   .scrollbar-thin {
     @apply overflow-y-auto;
   }
