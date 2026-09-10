@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx - COMPLETE FIXED VERSION
+// app/dashboard/page.tsx - COMPLETE FIXED VERSION WITH DEBUGGING
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare, Wallet, TrendingUp, Loader2, AlertCircle,
-  Crown, UserPlus, Settings, ArrowRight, Sparkles
+  Crown, UserPlus, Settings, Sparkles
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -32,14 +32,40 @@ type DashboardData = {
 
 // Admin Welcome Card Component
 function AdminWelcomeCard() {
-  const { profile } = useAuth();
-  
+  const { profile, isAdmin, loading } = useAuth();
+
+  // DEBUG LOG
+  console.log('🎨 [AdminWelcomeCard] Render check:', {
+    profile: profile ? { name: profile.name, role: profile.role, is_active: profile.is_active } : null,
+    isAdmin,
+    loading,
+    shouldRender: isAdmin && profile && !loading,
+  });
+
+  // Kondisi return null
+  if (loading) {
+    console.log('⏳ [AdminWelcomeCard] Returning null - still loading');
+    return null;
+  }
+
+  if (!profile) {
+    console.log('❌ [AdminWelcomeCard] Returning null - no profile');
+    return null;
+  }
+
+  if (!isAdmin) {
+    console.log('❌ [AdminWelcomeCard] Returning null - not admin. Role:', profile?.role);
+    return null;
+  }
+
+  console.log('✅ [AdminWelcomeCard] Rendering admin card');
+
   return (
     <Card className="relative overflow-hidden border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-blue-950/20 dark:border-blue-800">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 dark:bg-blue-900/20 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
       
-      <CardContent className="p-6">
+      <CardContent className="p-6 relative z-10">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
@@ -48,7 +74,7 @@ function AdminWelcomeCard() {
               </div>
               <div>
                 <h3 className="font-bold text-blue-900 dark:text-blue-100 text-lg">
-                  Welcome back, {profile?.name}!
+                  Welcome back, {profile.name}!
                 </h3>
                 <div className="flex items-center gap-2">
                   <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300">
@@ -65,23 +91,37 @@ function AdminWelcomeCard() {
             
             {/* Quick Admin Actions */}
             <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Link href="/register">
-                  <UserPlus className="w-4 h-4 mr-2" />
+              <Button 
+                asChild 
+                size="sm" 
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              >
+                <Link href="/register" className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
                   Create New User
                 </Link>
               </Button>
               
-              <Button asChild variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50">
-                <Link href="/dashboard/users">
-                  <Users className="w-4 h-4 mr-2" />
+              <Button 
+                asChild 
+                variant="outline" 
+                size="sm" 
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                <Link href="/dashboard/users" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
                   Manage Users
                 </Link>
               </Button>
               
-              <Button asChild variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50">
-                <Link href="/dashboard/settings">
-                  <Settings className="w-4 h-4 mr-2" />
+              <Button 
+                asChild 
+                variant="outline" 
+                size="sm" 
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                <Link href="/dashboard/settings" className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
                   Settings
                 </Link>
               </Button>
@@ -107,6 +147,17 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // DEBUG LOG
+  useEffect(() => {
+    console.log('📊 [DashboardPage] Render check:', {
+      user: user?.email,
+      profile: profile ? { name: profile.name, role: profile.role, is_active: profile.is_active } : null,
+      isAdmin,
+      authLoading,
+      shouldRenderAdminCard: isAdmin && profile && !authLoading,
+    });
+  }, [user, profile, isAdmin, authLoading]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -249,32 +300,32 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header with User Info */}
       <div className="flex items-center justify-between">
-        <div className="animate-fade-in">
+        <div className="animate-fade-in flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
             {profile && (
               <Badge variant="outline" className="px-3 py-1">
-                Welcome, {profile.name}
+                {profile.name}
               </Badge>
             )}
           </div>
           <p className="text-muted-foreground text-sm mt-1">
             Monitor your marketing operations at a glance
             {isAdmin && (
-              <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+              <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
                 <Sparkles className="w-3 h-3" />
-                Administrator View
+                Administrator
               </span>
             )}
           </p>
         </div>
 
         {/* Admin Quick Access in Header */}
-        {isAdmin && (
+        {isAdmin && profile && !authLoading && (
           <div className="flex gap-2">
-            <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
-              <Link href="/register">
-                <UserPlus className="w-4 h-4 mr-2" />
+            <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 font-medium">
+              <Link href="/register" className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
                 Create User
               </Link>
             </Button>
@@ -282,8 +333,10 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Admin Welcome Card - Most Prominent */}
-      {isAdmin && <AdminWelcomeCard />}
+      {/* Admin Welcome Card - PROMINENT */}
+      {isAdmin && profile && !authLoading && (
+        <AdminWelcomeCard />
+      )}
 
       {/* Error Alert */}
       {error && (
