@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx - COMPLETE FIXED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,10 +10,12 @@ import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/cli
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
-  Users, CalendarCheck, Building2, CheckSquare,
-  Wallet, TrendingUp, Loader2, AlertCircle,
+  Users, CalendarCheck, Building2, CheckSquare, Wallet, TrendingUp, Loader2, AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -28,7 +31,7 @@ type DashboardData = {
 };
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -41,6 +44,17 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // DEBUG LOG
+  useEffect(() => {
+    console.log('📊 [DashboardPage] State update:', {
+      user: user?.email,
+      profile: profile ? { name: profile.name, role: profile.role, is_active: profile.is_active } : null,
+      isAdmin,
+      authLoading,
+      shouldRenderAdminCard: !authLoading && isAdmin && profile,
+    });
+  }, [user, profile, isAdmin, authLoading]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -171,7 +185,7 @@ export default function DashboardPage() {
     return { month: m.month, revenue: monthRevenue, expenses: monthExpenses };
   });
 
-  // YAxis formatter singkat
+  // YAxis formatter
   const yAxisFormatter = (value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(0)}M`;
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
@@ -181,12 +195,27 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="animate-fade-in">
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Monitor your marketing operations at a glance
-        </p>
+      {/* Header with User Info */}
+      <div className="flex items-center justify-between">
+        <div className="animate-fade-in flex-1">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
+            {profile && (
+              <Badge variant="outline" className="px-3 py-1">
+                {profile.name}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">
+            Monitor your marketing operations at a glance
+            {isAdmin && (
+              <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                <Sparkles className="w-3 h-3" />
+                Administrator
+              </span>
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Error Alert */}
