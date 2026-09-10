@@ -1,4 +1,4 @@
-// app/login/page.tsx - CLEAN PROFESSIONAL VERSION
+// app/login/page.tsx - COMPLETE VERSION WITH ADMIN BUTTON
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, Mail, Lock } from 'lucide-react';
+import { Loader2, Mail, Lock, Shield, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -83,9 +83,14 @@ export default function LoginPage() {
     setLoading(false);
   };
 
+  const handleAdminAccess = () => {
+    router.push('/register');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-6">
+        {/* Main Login Card */}
         <Card className="shadow-lg border-0 bg-white dark:bg-gray-800">
           <CardHeader className="space-y-6 text-center pb-8">
             {/* Logo */}
@@ -176,8 +181,39 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
+        {/* Admin Panel Access Card */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  Administrator Access
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Manage users and system settings
+                </p>
+              </div>
+
+              <Button
+                onClick={handleAdminAccess}
+                variant="outline"
+                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Access Admin Panel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Footer */}
-        <div className="text-center mt-6">
+        <div className="text-center">
           <p className="text-xs text-gray-500">
             Papatong CRM © 2026
           </p>
