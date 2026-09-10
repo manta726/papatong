@@ -1,15 +1,14 @@
-// app/dashboard/leads/page.tsx - COLLABORATIVE VERSION
+// app/dashboard/leads/page.tsx - FIXED
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { 
-  supabase, 
-  Lead, 
-  getAllLeads, 
-  createLead, 
-  updateLead, 
-  deleteLead 
+import {
+  Lead,
+  getAllLeads,
+  createLead,
+  updateLead,
+  deleteLead,
 } from '@/lib/supabase/client';
 import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
 import { StatusBadge } from '@/components/leads/status-badge';
@@ -19,24 +18,76 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogFooter, DialogClose,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Eye, Users, Loader2, User } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  Users,
+  Loader2,
+  User,
+} from 'lucide-react';
 import Link from 'next/link';
 
-const leadSources = ['website', 'referral', 'social', 'walk-in', 'advertisement', 'other'];
-const leadStatuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
+const leadSources = [
+  'website',
+  'referral',
+  'social',
+  'walk-in',
+  'advertisement',
+  'other',
+];
+const leadStatuses = [
+  'new',
+  'contacted',
+  'qualified',
+  'converted',
+  'lost',
+];
 
 type FormData = {
   name: string;
@@ -63,36 +114,60 @@ const emptyForm: FormData = {
 export const dynamic = 'force-dynamic';
 
 export default function LeadsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth(); // ✅ ambil profile untuk role check
   const { toast } = useToast();
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // ✅ CHANGED: Use getAllLeads (no user_id filter)
+  // ✅ Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // ✅ Role checks
+  const isAdminOrManager =
+    profile?.role === 'admin' || profile?.role === 'manager';
+
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const filters = statusFilter !== 'all' ? { status: statusFilter } : undefined;
+      const filters =
+        statusFilter !== 'all' ? { status: statusFilter } : undefined;
       const data = await getAllLeads(filters);
       setLeads(data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load leads';
-      toast({ title: 'Failed to load leads', description: message, variant: 'destructive' });
+      const message =
+        error instanceof Error ? error.message : 'Failed to load leads';
+      toast({
+        title: 'Failed to load leads',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [statusFilter, toast]);
 
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
-  // Filter by search
+  // ============================================
+  // FILTER
+  // ============================================
+
   const filteredLeads = leads.filter((lead) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -104,6 +179,10 @@ export default function LeadsPage() {
       lead.creator_name?.toLowerCase().includes(q)
     );
   });
+
+  // ============================================
+  // HANDLERS: ADD / EDIT
+  // ============================================
 
   const openAdd = () => {
     setForm(emptyForm);
@@ -126,7 +205,6 @@ export default function LeadsPage() {
     setDialogOpen(true);
   };
 
-  // ✅ CHANGED: Use createLead / updateLead functions
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -140,34 +218,82 @@ export default function LeadsPage() {
     try {
       if (editingId) {
         await updateLead(editingId, payload);
-        toast({ title: 'Lead updated successfully' });
+        toast({ title: '✅ Lead updated successfully' });
       } else {
         await createLead(payload);
-        toast({ title: 'Lead created successfully' });
+        toast({ title: '✅ Lead created successfully' });
       }
       setDialogOpen(false);
       fetchLeads();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Operation failed';
-      toast({ title: editingId ? 'Update failed' : 'Create failed', description: message, variant: 'destructive' });
+      const message =
+        error instanceof Error ? error.message : 'Operation failed';
+      toast({
+        title: editingId ? 'Update failed' : 'Create failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  // ✅ CHANGED: No user_id filter on delete
-  const handleDelete = async (id: string) => {
+  // ============================================
+  // HANDLERS: DELETE (dengan konfirmasi)
+  // ============================================
+
+  // Step 1: buka dialog konfirmasi
+  const openDeleteConfirm = (lead: Lead) => {
+    setDeleteTarget(lead);
+  };
+
+  // Step 2: eksekusi delete setelah konfirmasi
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+
     try {
-      await deleteLead(id);
-      toast({ title: 'Lead deleted' });
+      // ✅ FIX: deleteLead sekarang return SoftDeleteResult
+      await deleteLead(deleteTarget.id);
+      toast({
+        title: '🗑️ Lead deleted',
+        description: `"${deleteTarget.name}" dipindahkan ke recycle bin`,
+      });
+      setDeleteTarget(null);
       fetchLeads();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Delete failed';
-      toast({ title: 'Delete failed', description: message, variant: 'destructive' });
+      const message =
+        error instanceof Error ? error.message : 'Delete failed';
+      toast({
+        title: 'Delete failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
     }
   };
+
+  // ✅ Cek apakah user boleh edit lead tertentu
+  const canEditLead = (lead: Lead) =>
+    lead.created_by === user?.id ||
+    lead.user_id === user?.id ||
+    lead.assigned_to === user?.id ||
+    isAdminOrManager;
+
+  // ✅ Cek apakah user boleh delete lead tertentu
+  const canDeleteLead = (lead: Lead) =>
+    lead.created_by === user?.id ||
+    lead.user_id === user?.id ||
+    profile?.role === 'admin';
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div className="space-y-6">
+      {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Leads</h2>
@@ -181,7 +307,7 @@ export default function LeadsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* ── Filters ── */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -207,7 +333,7 @@ export default function LeadsPage() {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -227,20 +353,32 @@ export default function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Contact</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Contact
+                    </TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden sm:table-cell">Grade</TableHead>
-                    {/* ✅ NEW: Created By column */}
-                    <TableHead className="hidden lg:table-cell">Created By</TableHead>
-                    <TableHead className="hidden lg:table-cell">Budget</TableHead>
-                    <TableHead className="hidden xl:table-cell">Created</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      Grade
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Created By
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Budget
+                    </TableHead>
+                    <TableHead className="hidden xl:table-cell">
+                      Created
+                    </TableHead>
+                    <TableHead className="w-[50px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id} className="hover:bg-muted/50">
+                    <TableRow
+                      key={lead.id}
+                      className="hover:bg-muted/50"
+                    >
                       <TableCell>
                         <Link
                           href={`/dashboard/leads/${lead.id}`}
@@ -254,61 +392,106 @@ export default function LeadsPage() {
                           </p>
                         )}
                       </TableCell>
+
                       <TableCell className="hidden md:table-cell">
                         <div className="text-sm">
                           {lead.email && <p>{lead.email}</p>}
-                          {lead.phone && <p className="text-muted-foreground">{lead.phone}</p>}
+                          {lead.phone && (
+                            <p className="text-muted-foreground">
+                              {lead.phone}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
-                      <TableCell className="capitalize text-sm">{lead.source}</TableCell>
+
+                      <TableCell className="capitalize text-sm">
+                        {lead.source}
+                      </TableCell>
+
                       <TableCell>
                         <StatusBadge status={lead.status} />
                       </TableCell>
+
                       <TableCell className="hidden sm:table-cell">
                         <LeadGradeBadge grade={lead.lead_grade} />
                       </TableCell>
-                      {/* ✅ NEW: Show creator info */}
+
+                      {/* Created By */}
                       <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center gap-2">
-                          <User className="w-3 h-3 text-muted-foreground" />
+                          <User className="w-3 h-3 text-muted-foreground shrink-0" />
                           <span className="text-sm">
                             {lead.creator_name || 'Unknown'}
                           </span>
                           {lead.created_by === user?.id && (
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0"
+                            >
                               You
                             </Badge>
                           )}
                         </div>
                       </TableCell>
+
                       <TableCell className="hidden lg:table-cell text-sm font-medium">
                         {formatRupiah(lead.budget)}
                       </TableCell>
+
                       <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
-                        {new Date(lead.created_at).toLocaleDateString('id-ID')}
+                        {new Date(lead.created_at).toLocaleDateString(
+                          'id-ID'
+                        )}
                       </TableCell>
+
+                      {/* Actions Dropdown */}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {/* View — semua user */}
                             <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/leads/${lead.id}`}>
-                                <Eye className="w-4 h-4 mr-2" /> View Details
+                              <Link
+                                href={`/dashboard/leads/${lead.id}`}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(lead)}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(lead.id)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
+
+                            {/* Edit — hanya jika canEditLead */}
+                            {canEditLead(lead) && (
+                              <DropdownMenuItem
+                                onClick={() => openEdit(lead)}
+                              >
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+
+                            {/* Delete — hanya jika canDeleteLead */}
+                            {canDeleteLead(lead) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openDeleteConfirm(lead)
+                                  }
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -321,11 +504,13 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog - SAME AS BEFORE */}
+      {/* ── Add/Edit Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
+            <DialogTitle>
+              {editingId ? 'Edit Lead' : 'Add New Lead'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
@@ -333,10 +518,13 @@ export default function LeadsPage() {
               <Input
                 id="name"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value })
+                }
                 required
               />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -344,7 +532,9 @@ export default function LeadsPage() {
                   id="email"
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, email: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -352,14 +542,22 @@ export default function LeadsPage() {
                 <Input
                   id="phone"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, phone: e.target.value })
+                  }
                 />
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Source</Label>
-                <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
+                <Select
+                  value={form.source}
+                  onValueChange={(v) =>
+                    setForm({ ...form, source: v })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -374,7 +572,12 @@ export default function LeadsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) =>
+                    setForm({ ...form, status: v })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -388,13 +591,16 @@ export default function LeadsPage() {
                 </Select>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="unit_interest">Unit Interest</Label>
                 <Input
                   id="unit_interest"
                   value={form.unit_interest}
-                  onChange={(e) => setForm({ ...form, unit_interest: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, unit_interest: e.target.value })
+                  }
                   placeholder="e.g. 2BR unit"
                 />
               </div>
@@ -411,15 +617,19 @@ export default function LeadsPage() {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, notes: e.target.value })
+                }
                 rows={3}
               />
             </div>
+
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -427,13 +637,49 @@ export default function LeadsPage() {
                 </Button>
               </DialogClose>
               <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {saving && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 {editingId ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ✅ Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Lead <strong>{deleteTarget?.name}</strong> akan
+              dipindahkan ke recycle bin. Admin/manager dapat
+              merestore data ini jika diperlukan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleting && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
