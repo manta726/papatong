@@ -166,48 +166,84 @@ export default function DashboardPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    const fetchAll = async () => {
-      try {
-        setError(null);
-        setLoading(true);
+  const fetchAll = async () => {
+    try {
+      setError(null);
+      setLoading(true);
 
-        const userId = user.id;
+      const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] =
+        await Promise.all([
+          // ✅ FIX: Hapus .eq('user_id', userId) di semua query
+          // Collaborative = semua user lihat semua data
+          // Filter deleted_at IS NULL sudah dihandle RLS policy
 
-        const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] = await Promise.all([
-          supabase.from('leads').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
-          supabase.from('bookings').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
-          supabase.from('units').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
-          supabase.from('tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
-          supabase.from('expenses').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(100),
+          supabase
+            .from('active_leads')   // ← pakai VIEW (auto filter deleted)
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100),
+
+          supabase
+            .from('bookings')
+            .select('*')
+            .is('deleted_at', null)  // ← filter soft delete
+            .order('created_at', { ascending: false })
+            .limit(100),
+
+          supabase
+            .from('units')
+            .select('*')
+            .is('deleted_at', null)  // ← filter soft delete
+            .order('created_at', { ascending: false })
+            .limit(100),
+
+          supabase
+            .from('tasks')
+            .select('*')
+            .is('deleted_at', null)  // ← filter soft delete
+            .order('created_at', { ascending: false })
+            .limit(100),
+
+          supabase
+            .from('expenses')
+            .select('*')
+            .order('date', { ascending: false })
+            .limit(100),
         ]);
 
-        if (leadsRes.error) throw new Error(`Leads: ${leadsRes.error.message}`);
-        if (bookingsRes.error) throw new Error(`Bookings: ${bookingsRes.error.message}`);
-        if (unitsRes.error) throw new Error(`Units: ${unitsRes.error.message}`);
-        if (tasksRes.error) throw new Error(`Tasks: ${tasksRes.error.message}`);
-        if (expensesRes.error) throw new Error(`Expenses: ${expensesRes.error.message}`);
+      if (leadsRes.error)    throw new Error(`Leads: ${leadsRes.error.message}`);
+      if (bookingsRes.error) throw new Error(`Bookings: ${bookingsRes.error.message}`);
+      if (unitsRes.error)    throw new Error(`Units: ${unitsRes.error.message}`);
+      if (tasksRes.error)    throw new Error(`Tasks: ${tasksRes.error.message}`);
+      if (expensesRes.error) throw new Error(`Expenses: ${expensesRes.error.message}`);
 
-        setData({
-          leads: leadsRes.data ?? [],
-          bookings: bookingsRes.data ?? [],
-          units: unitsRes.data ?? [],
-          tasks: tasksRes.data ?? [],
-          expenses: expensesRes.data ?? [],
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
-        setError(message);
-        toast({ title: 'Error loading data', description: message, variant: 'destructive' });
-        console.error('Dashboard data fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setData({
+        leads:    leadsRes.data    ?? [],
+        bookings: bookingsRes.data ?? [],
+        units:    unitsRes.data    ?? [],
+        tasks:    tasksRes.data    ?? [],
+        expenses: expensesRes.data ?? [],
+      });
 
-    fetchAll();
-  }, [user, toast]);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load dashboard data';
+      setError(message);
+      toast({
+        title: 'Error loading data',
+        description: message,
+        variant: 'destructive',
+      });
+      console.error('Dashboard data fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchAll();
+}, [user, toast]);
 
   if (authLoading || !user) {
     return (
