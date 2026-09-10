@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx - COMPLETE FIXED VERSION
+// app/dashboard/page.tsx - COMPLETE FIXED VERSION WITH DEBUGGING
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare, Wallet, TrendingUp, Loader2, AlertCircle,
-  Sparkles
+  Crown, UserPlus, Settings, Sparkles
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -29,6 +29,109 @@ type DashboardData = {
   tasks: Task[];
   expenses: Expense[];
 };
+
+// Admin Welcome Card Component
+function AdminWelcomeCard() {
+  const { profile, isAdmin, loading } = useAuth();
+
+  // DEBUG LOG
+  console.log('🎨 [AdminWelcomeCard] Render check:', {
+    profile: profile ? { name: profile.name, role: profile.role, is_active: profile.is_active } : null,
+    isAdmin,
+    loading,
+    shouldRender: isAdmin && profile && !loading,
+  });
+
+  // Kondisi return null
+  if (loading) {
+    console.log('⏳ [AdminWelcomeCard] Returning null - still loading');
+    return null;
+  }
+
+  if (!profile) {
+    console.log('❌ [AdminWelcomeCard] Returning null - no profile');
+    return null;
+  }
+
+  if (!isAdmin) {
+    console.log('❌ [AdminWelcomeCard] Returning null - not admin. Role:', profile?.role);
+    return null;
+  }
+
+  console.log('✅ [AdminWelcomeCard] Rendering admin card');
+
+  return (
+    <Card className="relative overflow-hidden border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-blue-950/20 dark:border-blue-800">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 dark:bg-blue-900/20 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
+      
+      <CardContent className="p-6 relative z-10">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center">
+                <Crown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-blue-900 dark:text-blue-100 text-lg">
+                  Welcome back, {profile.name}!
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300">
+                    Administrator
+                  </Badge>
+                  <span className="text-blue-600 dark:text-blue-400 text-sm">• Full System Access</span>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-blue-700 dark:text-blue-300 text-sm mb-4">
+              You have administrator privileges. Manage users, system settings, and monitor all activities.
+            </p>
+            
+            {/* Quick Admin Actions */}
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                asChild 
+                size="sm" 
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              >
+                <Link href="/register" className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Create New User
+                </Link>
+              </Button>
+              
+              <Button 
+                asChild 
+                variant="outline" 
+                size="sm" 
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                <Link href="/dashboard/users" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Manage Users
+                </Link>
+              </Button>
+              
+              <Button 
+                asChild 
+                variant="outline" 
+                size="sm" 
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                <Link href="/dashboard/settings" className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const { user, profile, isAdmin, loading: authLoading } = useAuth();
@@ -47,12 +150,12 @@ export default function DashboardPage() {
 
   // DEBUG LOG
   useEffect(() => {
-    console.log('📊 [DashboardPage] State update:', {
+    console.log('📊 [DashboardPage] Render check:', {
       user: user?.email,
       profile: profile ? { name: profile.name, role: profile.role, is_active: profile.is_active } : null,
       isAdmin,
       authLoading,
-      shouldRenderAdminCard: !authLoading && isAdmin && profile,
+      shouldRenderAdminCard: isAdmin && profile && !authLoading,
     });
   }, [user, profile, isAdmin, authLoading]);
 
@@ -216,7 +319,24 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
+
+        {/* Admin Quick Access in Header */}
+        {isAdmin && profile && !authLoading && (
+          <div className="flex gap-2">
+            <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 font-medium">
+              <Link href="/register" className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Create User
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Admin Welcome Card - PROMINENT */}
+      {isAdmin && profile && !authLoading && (
+        <AdminWelcomeCard />
+      )}
 
       {/* Error Alert */}
       {error && (
