@@ -1,16 +1,19 @@
+// app/dashboard/leads/[id]/page.tsx - COLLABORATIVE VERSION
 'use client';
 
-import { useEffect, useState } from 'react'; 
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
 import {
   supabase,
   Lead,
-  getLeadWithFollowUps,
+  getLeadById,
+  getFollowUpLogs,
   calculateLeadScore,
   getLeadGrade,
   getTeamMembers,
   TeamMember,
   assignLead,
+  updateLead,
   FollowUpLog,
 } from '@/lib/supabase/client';
 import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
@@ -24,7 +27,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Mail, Phone, Pencil, Save, X, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Mail, Phone, Pencil, Save, X, Loader2, User, Edit3, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -32,7 +36,6 @@ import { useToast } from '@/hooks/use-toast';
 const leadStatuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
 const leadSources = ['website', 'referral', 'social', 'walk-in', 'advertisement', 'other'];
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
@@ -48,20 +51,22 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<Lead>>({});
 
+  // ✅ CHANGED: No user_id filter
   useEffect(() => {
     if (!user) return;
 
     async function fetchData() {
       try {
-        if (!user || !user.id) return;
+        const [leadData, followUpsData, team] = await Promise.all([
+          getLeadById(params.id),
+          getFollowUpLogs(params.id),
+          getTeamMembers(),
+        ]);
 
-        const { lead, followUps } = await getLeadWithFollowUps(params.id, user.id);
-        const team = await getTeamMembers(user.id);
-
-        setLead(lead);
-        setFollowUps(followUps);
+        setLead(leadData);
+        setFollowUps(followUpsData);
         setTeamMembers(team);
-        setForm(lead);
+        setForm(leadData);
       } catch (error) {
         toast({ title: 'Error loading lead', variant: 'destructive' });
         router.push('/dashboard/leads');
@@ -73,26 +78,19 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     fetchData();
   }, [params.id, user, toast, router]);
 
+  // ✅ CHANGED: Use updateLead function
   const handleSave = async () => {
     if (!user || !lead) return;
     setSaving(true);
 
     try {
-      // Parse budget sebelum save
       const payload = {
         ...form,
-        budget: form.budget ? parseBudget(form.budget) : null,
+        budget: form.budget ? parseBudget(form.budget.toString()) : null,
       };
 
-      const { error } = await supabase
-        .from('leads')
-        .update(payload)
-        .eq('id', params.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setLead({ ...lead, ...form } as Lead);
+      const updated = await updateLead(params.id, payload);
+      setLead(updated);
       setEditing(false);
       toast({ title: 'Lead updated' });
     } catch (error) {
@@ -159,6 +157,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <CardContent className="space-y-4">
               {editing ? (
                 <>
+                  {/* Edit form - SAME AS BEFORE */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
@@ -226,7 +225,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                         </SelectContent>
                       </Select>
                     </div>
-                    {/* ✅ BUDGET INPUT EDIT MODE: Auto-format dengan "Rp" */}
                     <div className="space-y-2">
                       <Label htmlFor="budget">Budget</Label>
                       <Input
@@ -281,7 +279,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {/* ✅ BUDGET DISPLAY: Format Rupiah */}
                     <div>
                       <p className="text-xs text-muted-foreground">Budget</p>
                       <p className="text-sm font-medium">{formatRupiah(lead.budget)}</p>
@@ -315,6 +312,43 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
         {/* Right: Assignment & Score */}
         <div className="space-y-6">
+          {/* ✅ NEW: Audit Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-start gap-2">
+                <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Created By</p>
+                  <p className="font-medium">{lead.creator_name || 'Unknown'}</p>
+                  {lead.created_by === user?.id && (
+                    <Badge variant="outline" className="mt-1 text-xs">You</Badge>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(lead.created_at).toLocaleString('id-ID')}
+                  </p>
+                </div>
+              </div>
+              {lead.editor_name && lead.editor_name !== lead.creator_name && (
+                <div className="flex items-start gap-2 pt-2 border-t">
+                  <Edit3 className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Last Edited By</p>
+                    <p className="font-medium">{lead.editor_name}</p>
+                    {lead.edited_by === user?.id && (
+                      <Badge variant="outline" className="mt-1 text-xs">You</Badge>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(lead.updated_at).toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Lead Score Card */}
           <Card>
             <CardHeader>
@@ -328,11 +362,8 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${
-                    grade === 'HOT'
-                      ? 'bg-red-500'
-                      : grade === 'WARM'
-                      ? 'bg-yellow-500'
-                      : 'bg-blue-500'
+                    grade === 'HOT' ? 'bg-red-500' :
+                    grade === 'WARM' ? 'bg-yellow-500' : 'bg-blue-500'
                   }`}
                   style={{ width: `${score}%` }}
                 />
@@ -351,10 +382,13 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <CardContent>
               <Select
                 value={lead.assigned_to || ''}
-                onValueChange={(value) => {
-                  if (user) {
-                    assignLead(params.id, value || null, user.id);
+                onValueChange={async (value) => {
+                  try {
+                    await assignLead(params.id, value || null);
                     setLead({ ...lead, assigned_to: value || null });
+                    toast({ title: 'Lead assigned' });
+                  } catch (error) {
+                    toast({ title: 'Failed to assign', variant: 'destructive' });
                   }
                 }}
               >
