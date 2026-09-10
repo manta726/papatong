@@ -302,41 +302,47 @@ export async function getLeadById(leadId: string) {
  * Tidak perlu pass user_id manual
  */
 export async function createLead(
-  leadData: Omit<
-    Lead,
-    | 'id'
-    | 'user_id'
-    | 'created_at'
-    | 'updated_at'
-    | 'lead_score'
-    | 'lead_grade'
-    | 'created_by'
-    | 'edited_by'
-    | 'creator_name'
-    | 'editor_name'
-    | 'deleted_at'
-    | 'creator_display_name'
-    | 'creator_role'
-    | 'assignee_display_name'
-    | 'assignee_phone'
-  >
+  leadData: {
+    // Wajib diisi
+    name: string;
+    source: string;
+    status: string;
+    // Optional
+    email?: string | null;
+    phone?: string | null;
+    unit_interest?: string | null;
+    budget?: number | null;
+    notes?: string | null;
+    assigned_to?: string | null;
+    contacted_at?: string | null;
+    last_follow_up_at?: string | null;
+  }
 ) {
-  // Hitung score sebelum insert
   const score = calculateLeadScore(leadData);
   const grade = getLeadGrade(score);
 
-  // Ambil user_id dari session untuk kolom lama
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User tidak terautentikasi');
 
   const { data, error } = await supabase
     .from('leads')
     .insert({
-      ...leadData,
-      user_id: user.id,     // kolom lama, tetap diisi
-      lead_score: score,
-      lead_grade: grade,
-      // created_by & creator_name → diisi trigger otomatis
+      // Default semua optional field ke null jika tidak diisi
+      email:              leadData.email ?? null,
+      phone:              leadData.phone ?? null,
+      unit_interest:      leadData.unit_interest ?? null,
+      budget:             leadData.budget ?? null,
+      notes:              leadData.notes ?? null,
+      assigned_to:        leadData.assigned_to ?? null,
+      contacted_at:       leadData.contacted_at ?? null,
+      last_follow_up_at:  leadData.last_follow_up_at ?? null,
+      // Selalu diisi
+      name:               leadData.name,
+      source:             leadData.source,
+      status:             leadData.status,
+      user_id:            user.id,
+      lead_score:         score,
+      lead_grade:         grade,
     })
     .select()
     .single();
