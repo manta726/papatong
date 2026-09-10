@@ -1,33 +1,37 @@
+// app/dashboard/reports/page.tsx - COLLABORATIVE FIXED
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { supabase, Lead, Booking, Unit, Task, Expense } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/currency';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { StatsCard } from '@/components/dashboard/stats-card';
-import { Users, CalendarCheck, Building2, Wallet, TrendingUp, Target, Loader2 } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  LineChart,
-  Line,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { StatsCard } from '@/components/dashboard/stats-card';
+import {
+  Users,
+  CalendarCheck,
+  Building2,
+  Wallet,
+  TrendingUp,
+  Target,
+  Loader2,
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
 
 type ReportData = {
-  leads: Lead[];
+  leads:    Lead[];
   bookings: Booking[];
-  units: Unit[];
-  tasks: Task[];
+  units:    Unit[];
+  tasks:    Task[];
   expenses: Expense[];
 };
 
@@ -42,11 +46,7 @@ const pieColors = [
 export default function ReportsPage() {
   const { user } = useAuth();
   const [data, setData] = useState<ReportData>({
-    leads: [],
-    bookings: [],
-    units: [],
-    tasks: [],
-    expenses: [],
+    leads: [], bookings: [], units: [], tasks: [], expenses: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -54,23 +54,43 @@ export default function ReportsPage() {
     async function fetchAll() {
       if (!user) return;
 
-      const [leads, bookings, units, tasks, expenses] = await Promise.all([
-        supabase.from('leads').select('*').eq('user_id', user.id),
-        supabase.from('bookings').select('*').eq('user_id', user.id),
-        supabase.from('units').select('*').eq('user_id', user.id),
-        supabase.from('tasks').select('*').eq('user_id', user.id),
-        supabase.from('expenses').select('*').eq('user_id', user.id),
-      ]);
-      
+      // ✅ FIX: Hapus semua .eq('user_id') → collaborative
+      const [leadsRes, bookingsRes, unitsRes, tasksRes, expensesRes] =
+        await Promise.all([
+          supabase
+            .from('active_leads')     // ← view, auto filter deleted_at
+            .select('*'),
+
+          supabase
+            .from('bookings')
+            .select('*')
+            .is('deleted_at', null),  // ← filter soft delete
+
+          supabase
+            .from('units')
+            .select('*')
+            .is('deleted_at', null),  // ← filter soft delete
+
+          supabase
+            .from('tasks')
+            .select('*')
+            .is('deleted_at', null),  // ← filter soft delete
+
+          supabase
+            .from('expenses')
+            .select('*'),
+        ]);
+
       setData({
-        leads: leads.data ?? [],
-        bookings: bookings.data ?? [],
-        units: units.data ?? [],
-        tasks: tasks.data ?? [],
-        expenses: expenses.data ?? [],
+        leads:    leadsRes.data    ?? [],
+        bookings: bookingsRes.data ?? [],
+        units:    unitsRes.data    ?? [],
+        tasks:    tasksRes.data    ?? [],
+        expenses: expensesRes.data ?? [],
       });
       setLoading(false);
     }
+
     fetchAll();
   }, [user]);
 
@@ -85,70 +105,92 @@ export default function ReportsPage() {
     );
   }
 
+  // ── Metrics ──
   const totalRevenue = data.bookings
     .filter((b) => b.status === 'confirmed' || b.status === 'completed')
     .reduce((s, b) => s + Number(b.amount), 0);
-  const totalExpenses = data.expenses.reduce((s, e) => s + Number(e.amount), 0);
+
+  const totalExpenses = data.expenses
+    .reduce((s, e) => s + Number(e.amount), 0);
+
   const netProfit = totalRevenue - totalExpenses;
+
   const conversionRate =
     data.leads.length > 0
-      ? ((data.leads.filter((l) => l.status === 'converted').length / data.leads.length) * 100).toFixed(1)
+      ? (
+          (data.leads.filter((l) => l.status === 'converted').length /
+            data.leads.length) *
+          100
+        ).toFixed(1)
       : '0';
+
+  const confirmedBookings = data.bookings.filter(
+    (b) => b.status === 'confirmed' || b.status === 'completed'
+  );
   const avgBookingValue =
-    data.bookings.length > 0
-      ? totalRevenue / data.bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed').length
+    confirmedBookings.length > 0
+      ? totalRevenue / confirmedBookings.length
       : 0;
 
-  // Conversion funnel
+  // ── Conversion funnel ──
   const funnelData = [
-    { stage: 'New', count: data.leads.filter((l) => l.status === 'new').length },
+    { stage: 'New',       count: data.leads.filter((l) => l.status === 'new').length },
     { stage: 'Contacted', count: data.leads.filter((l) => l.status === 'contacted').length },
     { stage: 'Qualified', count: data.leads.filter((l) => l.status === 'qualified').length },
     { stage: 'Converted', count: data.leads.filter((l) => l.status === 'converted').length },
   ];
 
-  // Expense by category
+  // ── Expense by category ──
   const categoryCounts = data.expenses.reduce((acc, e) => {
     acc[e.category] = (acc[e.category] || 0) + Number(e.amount);
     return acc;
   }, {} as Record<string, number>);
-  const categoryData = Object.entries(categoryCounts).map(([name, value]) => ({ name, value }));
+  const categoryData = Object.entries(categoryCounts).map(
+    ([name, value]) => ({ name, value })
+  );
 
-  // Unit status distribution
+  // ── Unit status distribution ──
   const unitStatusData = data.units.reduce((acc, u) => {
     acc[u.status] = (acc[u.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  const unitStatusChart = Object.entries(unitStatusData).map(([name, value]) => ({ name, value }));
+  const unitStatusChart = Object.entries(unitStatusData).map(
+    ([name, value]) => ({ name, value })
+  );
 
-  // Monthly trend (12 months)
+  // ── Monthly trend (12 months) ──
   const now = new Date();
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     return {
       label: d.toLocaleString('default', { month: 'short' }),
       month: d.getMonth(),
-      year: d.getFullYear(),
+      year:  d.getFullYear(),
     };
   });
+
   const monthlyData = months.map((m) => {
     const leads = data.leads.filter((l) => {
       const d = new Date(l.created_at);
       return d.getMonth() === m.month && d.getFullYear() === m.year;
     }).length;
+
     const bookings = data.bookings.filter((b) => {
       const d = new Date(b.booking_date);
       return d.getMonth() === m.month && d.getFullYear() === m.year;
     }).length;
+
     return { month: m.label, leads, bookings };
   });
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reports & Analytics</h2>
+        <h2 className="text-2xl font-bold tracking-tight">
+          Reports & Analytics
+        </h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Comprehensive view of your marketing performance
+          Comprehensive view of team marketing performance
         </p>
       </div>
 
@@ -159,40 +201,55 @@ export default function ReportsPage() {
           value={totalRevenue}
           icon={TrendingUp}
           accent="success"
-          isCurrency={true}
+          isCurrency
         />
         <StatsCard
           label="Total Expenses"
           value={totalExpenses}
           icon={Wallet}
           accent="destructive"
-          isCurrency={true}
+          isCurrency
         />
         <StatsCard
           label="Net Profit"
           value={netProfit}
           icon={Target}
           accent={netProfit >= 0 ? 'success' : 'destructive'}
-          isCurrency={true}
+          isCurrency
         />
-        <StatsCard label="Conversion Rate" value={`${conversionRate}%`} icon={Users} accent="primary" />
+        <StatsCard
+          label="Conversion Rate"
+          value={`${conversionRate}%`}
+          icon={Users}
+          accent="primary"
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard label="Total Leads" value={data.leads.length} icon={Users} accent="primary" />
+        <StatsCard
+          label="Total Leads"
+          value={data.leads.length}
+          icon={Users}
+          accent="primary"
+        />
         <StatsCard
           label="Total Bookings"
           value={data.bookings.length}
           icon={CalendarCheck}
           accent="success"
         />
-        <StatsCard label="Total Units" value={data.units.length} icon={Building2} accent="warning" />
+        <StatsCard
+          label="Total Units"
+          value={data.units.length}
+          icon={Building2}
+          accent="warning"
+        />
         <StatsCard
           label="Avg Booking Value"
           value={avgBookingValue}
           icon={TrendingUp}
           accent="primary"
-          isCurrency={true}
+          isCurrency
         />
       </div>
 
@@ -200,14 +257,27 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Leads & Bookings Trend</CardTitle>
-          <CardDescription>Monthly comparison over the last 12 months</CardDescription>
+          <CardDescription>
+            Monthly comparison over the last 12 months
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="hsl(var(--border))"
+              />
+              <XAxis
+                dataKey="month"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                allowDecimals={false}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
@@ -217,8 +287,20 @@ export default function ReportsPage() {
                 }}
               />
               <Legend />
-              <Line type="monotone" dataKey="leads" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Leads" />
-              <Line type="monotone" dataKey="bookings" stroke="hsl(var(--chart-2))" strokeWidth={2} name="Bookings" />
+              <Line
+                type="monotone"
+                dataKey="leads"
+                stroke="hsl(var(--chart-1))"
+                strokeWidth={2}
+                name="Leads"
+              />
+              <Line
+                type="monotone"
+                dataKey="bookings"
+                stroke="hsl(var(--chart-2))"
+                strokeWidth={2}
+                name="Bookings"
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
@@ -233,12 +315,23 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {funnelData.every((d) => d.count === 0) ? (
-              <p className="text-sm text-muted-foreground text-center py-12">No lead data available</p>
+              <p className="text-sm text-muted-foreground text-center py-12">
+                No lead data available
+              </p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={funnelData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    allowDecimals={false}
+                  />
                   <YAxis
                     dataKey="stage"
                     type="category"
@@ -254,7 +347,12 @@ export default function ReportsPage() {
                       fontSize: '13px',
                     }}
                   />
-                  <Bar dataKey="count" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} name="Leads" />
+                  <Bar
+                    dataKey="count"
+                    fill="hsl(var(--chart-1))"
+                    radius={[0, 6, 6, 0]}
+                    name="Leads"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -269,7 +367,9 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {categoryData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-12">No expense data available</p>
+              <p className="text-sm text-muted-foreground text-center py-12">
+                No expense data available
+              </p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
@@ -283,7 +383,10 @@ export default function ReportsPage() {
                     innerRadius={40}
                   >
                     {categoryData.map((_, i) => (
-                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                      <Cell
+                        key={i}
+                        fill={pieColors[i % pieColors.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -307,22 +410,32 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Unit Inventory Status</CardTitle>
-          <CardDescription>Current distribution of unit statuses</CardDescription>
+          <CardDescription>
+            Current distribution of unit statuses
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {unitStatusChart.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No unit data available</p>
+            <p className="text-sm text-muted-foreground text-center py-12">
+              No unit data available
+            </p>
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={unitStatusChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                />
                 <XAxis
                   dataKey="name"
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
-                  className="capitalize"
                 />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  allowDecimals={false}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
@@ -331,7 +444,12 @@ export default function ReportsPage() {
                     fontSize: '13px',
                   }}
                 />
-                <Bar dataKey="value" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} name="Units" />
+                <Bar
+                  dataKey="value"
+                  fill="hsl(var(--chart-3))"
+                  radius={[6, 6, 0, 0]}
+                  name="Units"
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
