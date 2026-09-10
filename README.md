@@ -92,3 +92,19 @@
 ```bash
 git clone https://github.com/manta726/papatong.git
 cd papatong
+
+## 📸 Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Lead Management
+![Leads](docs/screenshots/leads.png)
+
+### Admin Panel
+![Create User](docs/screenshots/create-user.png)
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.2-blue?logo=react)](https://react.dev)
+[![Tailwind](https://img.shields.io/badge/Tailwind-3.4-blue?logo=tailwindcss)](https://tailwindcss.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)](https://www.postgresql.org/)
