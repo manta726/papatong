@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx - COMPLETE VERSION WITH ADMIN PANEL
+// app/dashboard/page.tsx - COMPLETE FIXED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,10 +11,11 @@ import { StatsCard } from '@/components/dashboard/stats-card';
 import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Users, CalendarCheck, Building2, CheckSquare, Wallet, TrendingUp, Loader2, AlertCircle,
-  Crown, UserPlus, Shield, Settings
+  Crown, UserPlus, Settings, ArrowRight, Sparkles
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -29,68 +30,63 @@ type DashboardData = {
   expenses: Expense[];
 };
 
-// Debug Auth Component (TEMPORARY - Remove after testing)
-function DebugAuth() {
-  const { user, profile, isAdmin, loading } = useAuth();
-
+// Admin Welcome Card Component
+function AdminWelcomeCard() {
+  const { profile } = useAuth();
+  
   return (
-    <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm text-yellow-800 dark:text-yellow-200">
-          🐛 Auth Debug Info (Remove after testing)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm space-y-1">
-        <p><strong>Loading:</strong> {loading ? 'YES' : 'NO'}</p>
-        <p><strong>User ID:</strong> {user?.id || 'NULL'}</p>
-        <p><strong>User Email:</strong> {user?.email || 'NULL'}</p>
-        <p><strong>Profile:</strong> {profile ? 'LOADED' : 'NULL'}</p>
-        <p><strong>Profile Name:</strong> {profile?.name || 'NULL'}</p>
-        <p><strong>Profile Role:</strong> {profile?.role || 'NULL'}</p>
-        <p><strong>Is Admin:</strong> {isAdmin ? 'YES' : 'NO'}</p>
-        <p><strong>Profile Active:</strong> {profile?.is_active ? 'YES' : 'NO'}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Admin Panel Component
-function AdminPanel() {
-  const { profile, isAdmin } = useAuth();
-
-  if (!isAdmin) return null;
-
-  return (
-    <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-          <Crown className="w-5 h-5" />
-          Admin Panel
-        </CardTitle>
-        <CardDescription className="text-blue-600 dark:text-blue-300">
-          Welcome back, {profile?.name} • Administrator
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button asChild variant="outline" className="justify-start h-10 border-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950">
-            <Link href="/register">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Create New User
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="justify-start h-10 border-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950">
-            <Link href="/dashboard/users">
-              <Users className="w-4 h-4 mr-2" />
-              Manage Users
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="justify-start h-10 border-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950">
-            <Link href="/dashboard/settings">
-              <Settings className="w-4 h-4 mr-2" />
-              System Settings
-            </Link>
-          </Button>
+    <Card className="relative overflow-hidden border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-blue-950/20 dark:border-blue-800">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 dark:bg-blue-900/20 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
+      
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center">
+                <Crown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-blue-900 dark:text-blue-100 text-lg">
+                  Welcome back, {profile?.name}!
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-blue-300">
+                    Administrator
+                  </Badge>
+                  <span className="text-blue-600 dark:text-blue-400 text-sm">• Full System Access</span>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-blue-700 dark:text-blue-300 text-sm mb-4">
+              You have administrator privileges. Manage users, system settings, and monitor all activities.
+            </p>
+            
+            {/* Quick Admin Actions */}
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Link href="/register">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Create New User
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50">
+                <Link href="/dashboard/users">
+                  <Users className="w-4 h-4 mr-2" />
+                  Manage Users
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50">
+                <Link href="/dashboard/settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -98,7 +94,7 @@ function AdminPanel() {
 }
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -251,19 +247,43 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="animate-fade-in">
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Monitor your marketing operations at a glance
-        </p>
+      {/* Header with User Info */}
+      <div className="flex items-center justify-between">
+        <div className="animate-fade-in">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold tracking-tight">Dashboard Overview</h2>
+            {profile && (
+              <Badge variant="outline" className="px-3 py-1">
+                Welcome, {profile.name}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">
+            Monitor your marketing operations at a glance
+            {isAdmin && (
+              <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                <Sparkles className="w-3 h-3" />
+                Administrator View
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Admin Quick Access in Header */}
+        {isAdmin && (
+          <div className="flex gap-2">
+            <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
+              <Link href="/register">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Create User
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* DEBUG COMPONENT - Remove after testing */}
-      <DebugAuth />
-
-      {/* ADMIN PANEL - Shows only for admins */}
-      <AdminPanel />
+      {/* Admin Welcome Card - Most Prominent */}
+      {isAdmin && <AdminWelcomeCard />}
 
       {/* Error Alert */}
       {error && (
