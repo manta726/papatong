@@ -1,10 +1,11 @@
-// lib/supabase/auth-context.tsx - UPGRADE existing
+// lib/supabase/auth-context.tsx - REPLACE EXISTING CONTENT
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 
+// Enhanced user profile type
 type UserProfile = {
   id: string;
   email: string;
@@ -14,7 +15,9 @@ type UserProfile = {
   position: string | null;
   department: string | null;
   is_active: boolean;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 type AuthContextType = {
@@ -38,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Derived state
+  // Derived states
   const isAdmin = profile?.role === 'admin' && profile?.is_active === true;
 
   const fetchProfile = async (userId: string) => {
@@ -147,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile, 
     session, 
     loading, 
-    isAdmin, 
+    isAdmin,
     signIn, 
     signUp, 
     signOut, 
