@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, Shield, UserPlus, Mail, Lock, User, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Shield, Mail, Lock, User, Phone, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminCreateUserPage() {
@@ -78,15 +78,15 @@ export default function AdminCreateUserPage() {
 
   if (!mounted || authLoading || !accessChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="relative">
-            <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
-            <Shield className="w-6 h-6 text-blue-600 absolute inset-0 m-auto" />
+            <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
+            <Shield className="w-6 h-6 text-primary absolute inset-0 m-auto" />
           </div>
           <div>
-            <p className="font-medium text-gray-900 dark:text-gray-100">Verifying Access</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="font-medium text-foreground">Verifying Access</p>
+            <p className="text-sm text-muted-foreground mt-1">
               {!mounted ? 'Loading...' :
                authLoading ? 'Checking authentication...' :
                !user ? 'Redirecting...' :
@@ -164,7 +164,7 @@ export default function AdminCreateUserPage() {
       console.log('✅ User created successfully:', result.user);
 
       toast({
-        title: '🎉 User Created Successfully',
+        title: 'User Created Successfully',
         description: result.message || `${form.name} can now login with their credentials`,
         duration: 5000,
       });
@@ -211,57 +211,52 @@ export default function AdminCreateUserPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-2xl mx-auto py-8 space-y-6">
-        {/* Header */}
+        
+        {/* ========== HEADER ========== */}
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" onClick={handleGoBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-white" />
-              </div>
+            <h1 className="text-3xl font-bold text-foreground">
               Create New User
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-muted-foreground mt-1">
               Add a new team member to the system
             </p>
           </div>
         </div>
 
-        {/* Admin Status */}
-        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
-          <Shield className="h-4 w-4 text-blue-600" />
-          <AlertDescription>
-            <div className="flex items-center justify-between">
-              <div>
-                <strong className="text-blue-800 dark:text-blue-200">Admin Panel</strong>
-                <span className="text-blue-700 dark:text-blue-300 ml-2">
-                  • Logged in as {profile.name} • Administrator
-                </span>
-              </div>
-            </div>
+        {/* ========== ADMIN STATUS ========== */}
+        <Alert className="border-primary/30 bg-primary/5">
+          <Shield className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-foreground">
+            <strong>Admin Panel</strong>
+            <span className="text-muted-foreground ml-2">
+              • Logged in as {profile.name} • Administrator
+            </span>
           </AlertDescription>
         </Alert>
 
-        {/* Create User Form */}
-        <Card>
+        {/* ========== CREATE USER FORM ========== */}
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <User className="w-5 h-5 text-primary" />
               User Information
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateUser} className="space-y-6">
+              
               {/* Name & Email */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name *</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="name"
                       value={form.name}
@@ -276,7 +271,7 @@ export default function AdminCreateUserPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address *</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -297,7 +292,7 @@ export default function AdminCreateUserPage() {
                   <Label htmlFor="password">Temporary Password *</Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="password"
                         type="text"
@@ -315,6 +310,7 @@ export default function AdminCreateUserPage() {
                       variant="outline"
                       onClick={generatePassword}
                       disabled={loading}
+                      className="hover:bg-primary hover:text-primary-foreground"
                     >
                       Generate
                     </Button>
@@ -323,7 +319,7 @@ export default function AdminCreateUserPage() {
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="phone"
                       value={form.phone}
@@ -380,7 +376,7 @@ export default function AdminCreateUserPage() {
                 />
               </div>
 
-              {/* Submit Buttons */}
+              {/* ========== SUBMIT BUTTONS ========== */}
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
@@ -394,7 +390,7 @@ export default function AdminCreateUserPage() {
                 <Button 
                   type="submit" 
                   disabled={loading} 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  className="flex-1 bg-primary hover:bg-primary/90"
                 >
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {loading ? 'Creating User...' : 'Create User'}
@@ -404,14 +400,15 @@ export default function AdminCreateUserPage() {
           </CardContent>
         </Card>
 
-        {/* Help Text */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Note:</strong> The new user will receive login credentials via email and can change their password after first login.
+        {/* ========== HELP TEXT ========== */}
+        <Alert className="border-border bg-muted/50">
+          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          <AlertDescription className="text-muted-foreground">
+            <strong className="text-foreground">Note:</strong> The new user will receive login credentials via email and can change their password after first login.
           </AlertDescription>
         </Alert>
+        
       </div>
     </div>
   );
-  }
+}
