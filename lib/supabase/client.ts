@@ -1,3 +1,4 @@
+// lib/supabase/client.ts - COLLABORATIVE CRM VERSION
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
@@ -8,11 +9,31 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
- 
+
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // ============= TYPE DEFINITIONS =============
 
+/**
+ * USER PROFILE
+ */
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  role: 'admin' | 'manager' | 'sales' | 'support';
+  position: string | null;
+  department: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * LEAD - With audit trail
+ */
 export type Lead = {
   id: string;
   name: string;
@@ -21,21 +42,29 @@ export type Lead = {
   source: string;
   status: string;
   unit_interest: string | null;
-  budget: number | null;  // ✅ Diubah dari string ke number
+  budget: number | null;
   notes: string | null;
-  user_id: string;
 
-  // CRM Fields
+  // CRM fields
   lead_score: number;
   lead_grade: 'HOT' | 'WARM' | 'COLD';
   assigned_to: string | null;
   contacted_at: string | null;
   last_follow_up_at: string | null;
 
+  // Audit fields (auto-populated by triggers)
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
+
   created_at: string;
   updated_at: string;
 };
 
+/**
+ * FOLLOW UP LOG
+ */
 export type FollowUpLog = {
   id: string;
   lead_id: string;
@@ -46,9 +75,14 @@ export type FollowUpLog = {
   notes: string | null;
   next_follow_up_date: string | null;
   next_action: 'call' | 'send_info' | 'schedule_survey' | 'send_proposal' | 'close' | null;
+  user_role: string | null;
+  user_name: string | null;
   created_at: string;
 };
 
+/**
+ * TEAM MEMBER
+ */
 export type TeamMember = {
   id: string;
   user_id: string;
@@ -61,6 +95,9 @@ export type TeamMember = {
   updated_at: string;
 };
 
+/**
+ * LEAD SCORE RULE
+ */
 export type LeadScoreRule = {
   id: string;
   user_id: string;
@@ -71,6 +108,9 @@ export type LeadScoreRule = {
   created_at: string;
 };
 
+/**
+ * UNIT - With audit trail
+ */
 export type Unit = {
   id: string;
   name: string;
@@ -80,11 +120,17 @@ export type Unit = {
   price: number;
   location: string | null;
   description: string | null;
-  user_id: string;
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
   created_at: string;
   updated_at: string;
 };
 
+/**
+ * BOOKING - With audit trail
+ */
 export type Booking = {
   id: string;
   lead_id: string | null;
@@ -92,13 +138,19 @@ export type Booking = {
   booking_date: string;
   status: string;
   amount: number;
-  user_id: string;
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
   created_at: string;
   updated_at: string;
   leads?: Lead | null;
   units?: Unit | null;
 };
 
+/**
+ * TASK - With audit trail
+ */
 export type Task = {
   id: string;
   title: string;
@@ -107,12 +159,18 @@ export type Task = {
   priority: string;
   due_date: string | null;
   related_lead_id: string | null;
-  user_id: string;
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
   created_at: string;
   updated_at: string;
   leads?: Lead | null;
 };
 
+/**
+ * EXPENSE - With audit trail
+ */
 export type Expense = {
   id: string;
   title: string;
@@ -120,36 +178,35 @@ export type Expense = {
   category: string;
   amount: number;
   date: string;
-  user_id: string;
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
   created_at: string;
   updated_at: string;
 };
 
-// ============= UTILITY FUNCTIONS =============
+// ============= LEAD SCORING FUNCTIONS =============
 
 /**
- * Calculate lead score based on current lead data
- * HOT: 70+, WARM: 40-69, COLD: 0-39
+ * Calculate lead score (0-100)
  */
-export function calculateLeadScore(lead: Lead): number {
+export function calculateLeadScore(lead: Partial<Lead>): number {
   let score = 0;
 
-  // Budget score (0-40) - revisi untuk number
   if (lead.budget && lead.budget > 0) {
-    if (lead.budget >= 1_000_000_000) score += 40;       // >= 1 Miliar
-    else if (lead.budget >= 500_000_000) score += 30;    // >= 500jt
-    else if (lead.budget >= 100_000_000) score += 20;    // >= 100jt
-    else score += 10;                                     // < 100jt
+    if (lead.budget >= 1_000_000_000) score += 40;
+    else if (lead.budget >= 500_000_000) score += 30;
+    else if (lead.budget >= 100_000_000) score += 20;
+    else score += 10;
   }
 
-  // Status/Timeline score (0-30)
   if (lead.status === 'qualified') score += 30;
   else if (lead.status === 'contacted') score += 15;
+  else if (lead.status === 'new') score += 5;
 
-  // Engagement score (0-20)
   if (lead.contacted_at) score += 20;
 
-  // Unit interest bonus (0-10)
   if (lead.unit_interest && lead.unit_interest.trim() !== '') {
     score += 10;
   }
@@ -159,7 +216,6 @@ export function calculateLeadScore(lead: Lead): number {
 
 /**
  * Get lead grade based on score
- * HOT: 70+, WARM: 40-69, COLD: 0-39
  */
 export function getLeadGrade(score: number): 'HOT' | 'WARM' | 'COLD' {
   if (score >= 70) return 'HOT';
@@ -167,15 +223,58 @@ export function getLeadGrade(score: number): 'HOT' | 'WARM' | 'COLD' {
   return 'COLD';
 }
 
+// ============= COLLABORATIVE DATA FETCHING =============
+
 /**
- * Get all follow-ups for a lead
+ * Get ALL leads (all users can see all leads)
  */
-export async function getFollowUpLogs(leadId: string, userId: string) {
+export async function getAllLeads(filters?: { 
+  status?: string; 
+  assignedTo?: string; 
+  createdBy?: string;
+}) {
+  let query = supabase
+    .from('leads')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (filters?.status && filters.status !== 'all') {
+    query = query.eq('status', filters.status);
+  }
+  if (filters?.assignedTo) {
+    query = query.eq('assigned_to', filters.assignedTo);
+  }
+  if (filters?.createdBy) {
+    query = query.eq('created_by', filters.createdBy);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as Lead[]) || [];
+}
+
+/**
+ * Get single lead by ID (no user_id filter)
+ */
+export async function getLeadById(leadId: string) {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('id', leadId)
+    .single();
+
+  if (error) throw error;
+  return data as Lead;
+}
+
+/**
+ * Get all follow-ups for a lead (collaborative)
+ */
+export async function getFollowUpLogs(leadId: string) {
   const { data, error } = await supabase
     .from('follow_up_logs')
     .select('*')
     .eq('lead_id', leadId)
-    .eq('user_id', userId)
     .order('contact_date', { ascending: false });
 
   if (error) throw error;
@@ -183,10 +282,10 @@ export async function getFollowUpLogs(leadId: string, userId: string) {
 }
 
 /**
- * Add a new follow-up log
+ * Add follow-up log (collaborative)
  */
 export async function addFollowUpLog(
-  followUp: Omit<FollowUpLog, 'id' | 'created_at'>,
+  followUp: Omit<FollowUpLog, 'id' | 'created_at' | 'user_role' | 'user_name'>,
   userId: string
 ) {
   const { data, error } = await supabase
@@ -197,73 +296,27 @@ export async function addFollowUpLog(
 
   if (error) throw error;
 
+  // Update lead's last_follow_up_at
   await supabase
     .from('leads')
     .update({
       last_follow_up_at: new Date().toISOString(),
       contacted_at: followUp.contact_date,
     })
-    .eq('id', followUp.lead_id)
-    .eq('user_id', userId);
+    .eq('id', followUp.lead_id);
 
   return data as FollowUpLog;
 }
 
 /**
- * Get all team members
+ * Get lead with follow-ups (no user_id filter)
  */
-export async function getTeamMembers(userId: string) {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('active', true)
-    .order('name');
-
-  if (error) throw error;
-  return (data as TeamMember[]) || [];
-}
-
-/**
- * Add team member
- */
-export async function addTeamMember(
-  member: Omit<TeamMember, 'id' | 'created_at' | 'updated_at'>,
-  userId: string
-) {
-  const { data, error } = await supabase
-    .from('team_members')
-    .insert({ ...member, user_id: userId })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as TeamMember;
-}
-
-/**
- * Assign lead to team member
- */
-export async function assignLead(leadId: string, assignedTo: string | null, userId: string) {
-  const { error } = await supabase
-    .from('leads')
-    .update({ assigned_to: assignedTo })
-    .eq('id', leadId)
-    .eq('user_id', userId);
-
-  if (error) throw error;
-}
-
-/**
- * Get lead with follow-ups
- */
-export async function getLeadWithFollowUps(leadId: string, userId: string) {
+export async function getLeadWithFollowUps(leadId: string) {
   const [leadResult, followUpsResult] = await Promise.all([
     supabase
       .from('leads')
       .select('*')
       .eq('id', leadId)
-      .eq('user_id', userId)
       .single(),
     supabase
       .from('follow_up_logs')
@@ -280,8 +333,229 @@ export async function getLeadWithFollowUps(leadId: string, userId: string) {
   };
 }
 
+// ============= CRUD OPERATIONS =============
+
 /**
- * Initialize default scoring rules for new user
+ * Create new lead - audit fields auto-populated
+ */
+export async function createLead(
+  leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'lead_score' | 'lead_grade' | 'created_by' | 'edited_by' | 'creator_name' | 'editor_name'>
+) {
+  const score = calculateLeadScore(leadData);
+  const grade = getLeadGrade(score);
+
+  const { data, error } = await supabase
+    .from('leads')
+    .insert({
+      ...leadData,
+      lead_score: score,
+      lead_grade: grade,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Lead;
+}
+
+/**
+ * Update lead - audit fields auto-updated
+ */
+export async function updateLead(leadId: string, updates: Partial<Lead>) {
+  // Recalculate score if needed
+  if (updates.budget !== undefined || updates.status !== undefined || 
+      updates.contacted_at !== undefined || updates.unit_interest !== undefined) {
+    const { data: current } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', leadId)
+      .single();
+    
+    if (current) {
+      const merged = { ...current, ...updates };
+      updates.lead_score = calculateLeadScore(merged);
+      updates.lead_grade = getLeadGrade(updates.lead_score);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('leads')
+    .update(updates)
+    .eq('id', leadId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Lead;
+}
+
+/**
+ * Delete lead
+ */
+export async function deleteLead(leadId: string) {
+  const { error } = await supabase
+    .from('leads')
+    .delete()
+    .eq('id', leadId);
+
+  if (error) throw error;
+}
+
+/**
+ * Assign lead to user
+ */
+export async function assignLead(leadId: string, assignedTo: string | null) {
+  const { error } = await supabase
+    .from('leads')
+    .update({ assigned_to: assignedTo })
+    .eq('id', leadId);
+
+  if (error) throw error;
+}
+
+// ============= TEAM MEMBERS (COLLABORATIVE) =============
+
+/**
+ * Get all team members (all users can see)
+ */
+export async function getTeamMembers() {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .eq('active', true)
+    .order('name');
+
+  if (error) throw error;
+  return (data as TeamMember[]) || [];
+}
+
+/**
+ * Add team member
+ */
+export async function addTeamMember(
+  member: Omit<TeamMember, 'id' | 'created_at' | 'updated_at' | 'user_id'>,
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from('team_members')
+    .insert({ ...member, user_id: userId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as TeamMember;
+}
+
+// ============= USER PROFILES =============
+
+/**
+ * Get all user profiles
+ */
+export async function getAllUserProfiles() {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('is_active', true)
+    .order('name');
+
+  if (error) throw error;
+  return (data as UserProfile[]) || [];
+}
+
+/**
+ * Get user profile by ID
+ */
+export async function getUserProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return data as UserProfile;
+}
+
+// ============= OTHER ENTITIES (COLLABORATIVE) =============
+
+/**
+ * Get all bookings
+ */
+export async function getAllBookings() {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      *,
+      leads:lead_id(*),
+      units:unit_id(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as Booking[]) || [];
+}
+
+/**
+ * Get all units
+ */
+export async function getAllUnits() {
+  const { data, error } = await supabase
+    .from('units')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as Unit[]) || [];
+}
+
+/**
+ * Get all tasks
+ */
+export async function getAllTasks() {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      leads:related_lead_id(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as Task[]) || [];
+}
+
+/**
+ * Get all expenses
+ */
+export async function getAllExpenses() {
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('*')
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+  return (data as Expense[]) || [];
+}
+
+// ============= LEGACY FUNCTIONS (kept for compatibility) =============
+
+/**
+ * Get lead score rules
+ */
+export async function getLeadScoreRules(userId: string) {
+  const { data, error } = await supabase
+    .from('lead_score_rules')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('active', true)
+    .order('points', { ascending: false });
+
+  if (error) throw error;
+  return (data as LeadScoreRule[]) || [];
+}
+
+/**
+ * Initialize default scoring rules
  */
 export async function initializeDefaultScoringRules(userId: string) {
   const defaultRules = [
@@ -318,12 +592,11 @@ export async function initializeDefaultScoringRules(userId: string) {
 /**
  * Update lead score and grade
  */
-export async function updateLeadScore(leadId: string, userId: string) {
+export async function updateLeadScore(leadId: string) {
   const { data: lead, error: fetchError } = await supabase
     .from('leads')
     .select('*')
     .eq('id', leadId)
-    .eq('user_id', userId)
     .single();
 
   if (fetchError) throw fetchError;
@@ -337,8 +610,7 @@ export async function updateLeadScore(leadId: string, userId: string) {
       lead_score: newScore,
       lead_grade: newGrade,
     })
-    .eq('id', leadId)
-    .eq('user_id', userId);
+    .eq('id', leadId);
 
   if (updateError) throw updateError;
 }
