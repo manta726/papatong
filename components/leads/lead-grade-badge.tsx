@@ -14,9 +14,9 @@ export function LeadGradeBadge({ grade }: LeadGradeBadgeProps) {
   };
 
   const icons = {
-    HOT: '🔥',
-    WARM: '⚡',
-    COLD: '❄️',
+    HOT,
+    WARM,
+    COLD,
   };
 
   return (
