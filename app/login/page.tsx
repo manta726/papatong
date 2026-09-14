@@ -1,7 +1,7 @@
-// app/login/page.tsx - COMPLETE WITH ERROR HANDLING
+// app/login/page.tsx - FIXED WITH SUSPENSE
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/supabase/auth-context';
@@ -13,7 +13,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, AlertCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function LoginPage() {
+// ========================================
+// LOGIN CONTENT COMPONENT (with useSearchParams)
+// ========================================
+function LoginContent() {
   const { user, profile, loading: authLoading, signIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -159,7 +162,6 @@ export default function LoginPage() {
 
         setLoading(false);
       }
-      // If success, don't set loading to false - let redirect handle it
     } catch (err) {
       console.error('Sign in error:', err);
       toast({
@@ -306,5 +308,25 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// ========================================
+// MAIN PAGE COMPONENT (with Suspense wrapper)
+// ========================================
+export default function LoginPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
