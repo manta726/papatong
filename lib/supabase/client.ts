@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // ============================================
-// TYPE DEFINITIONS
+// TYPE DEFINITIONS (SINGLE - NO DUPLICATES)
 // ============================================
 
 export type UserProfile = {
@@ -32,7 +32,7 @@ export type UserProfile = {
 
 export type Lead = {
   id: string;
-  user_id: string;           // kolom lama, tetap ada
+  user_id: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -41,33 +41,25 @@ export type Lead = {
   unit_interest: string | null;
   budget: number | null;
   notes: string | null;
-
-  // CRM fields
   lead_score: number;
   lead_grade: 'HOT' | 'WARM' | 'COLD';
   assigned_to: string | null;
   contacted_at: string | null;
   last_follow_up_at: string | null;
-
-  // Audit fields (auto by triggers)
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
-
-  // Soft delete
   deleted_at: string | null;
-
   created_at: string;
   updated_at: string;
-
-  // Join fields (dari view active_leads)
   creator_display_name?: string | null;
   creator_role?: string | null;
   assignee_display_name?: string | null;
   assignee_phone?: string | null;
 };
 
+// ✅ FOLLOW UP LOG - With Audit Trail (FIXED - single declaration)
 export type FollowUpLog = {
   id: string;
   lead_id: string;
@@ -90,15 +82,24 @@ export type FollowUpLog = {
     | 'send_proposal'
     | 'close'
     | null;
+  
+  // Creator info
   user_role: string | null;
   user_name: string | null;
+  
+  // ✅ NEW: Editor audit trail
+  edited_by: string | null;
+  edited_at: string | null;
+  editor_name: string | null;
+  editor_role: string | null;
+  
   deleted_at: string | null;
   created_at: string;
 };
 
 export type TeamMember = {
   id: string;
-  user_id: string;   // ← ini auth.users.id, dipakai untuk assigned_to
+  user_id: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -136,9 +137,10 @@ export type Unit = {
   updated_at: string;
 };
 
+// ✅ BOOKING - With Payment Method (FIXED - single declaration)
 export type Booking = {
   id: string;
-  user_id: string;          // kolom lama
+  user_id: string;
   lead_id: string | null;
   unit_id: string | null;
   booking_date: string;
@@ -146,46 +148,56 @@ export type Booking = {
   amount: number;
   notes: string | null;
   booking_number: string | null;
-
+  
+  // ✅ NEW: Payment info
+  payment_method: string | null;
+  payment_details: string | null;
+  
   // Audit fields
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
   deleted_at: string | null;
-
   created_at: string;
   updated_at: string;
-
-  // Relations
   leads?: Lead | null;
   units?: Unit | null;
 };
 
+// ✅ TASK - With Assigned To & Recurring (FIXED - single declaration)
 export type Task = {
   id: string;
-  user_id: string;          // kolom lama
+  user_id: string;
   title: string;
   description: string | null;
   status: string;
   priority: string;
   due_date: string | null;
   related_lead_id: string | null;
-
+  
+  // ✅ NEW: Assignment
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  
+  // ✅ NEW: Recurring
+  is_recurring: boolean;
+  recurrence_pattern: string | null;
+  recurrence_end_date: string | null;
+  parent_task_id: string | null;
+  
   // Audit fields
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
   editor_name: string | null;
   deleted_at: string | null;
-
   created_at: string;
   updated_at: string;
-
-  // Relations
   leads?: Lead | null;
 };
 
+// ✅ EXPENSE - With Receipt & Approval (FIXED - single declaration)
 export type Expense = {
   id: string;
   title: string;
@@ -193,6 +205,16 @@ export type Expense = {
   category: string;
   amount: number;
   date: string;
+  
+  // ✅ NEW: Receipt & approval
+  receipt_url: string | null;
+  approval_status: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  approver_name: string | null;
+  rejection_reason: string | null;
+  
+  // Audit fields
   created_by: string | null;
   edited_by: string | null;
   creator_name: string | null;
@@ -209,6 +231,16 @@ export type SoftDeleteResult = {
   record_id?: string;
   deleted_at?: string;
 };
+
+// ============================================
+// HELPER TYPES
+// ============================================
+
+export type RecurrencePattern = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'kpr' | 'installment' | 'other';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type TaskStatus = 'todo' | 'in_progress' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high';
 
 // ============================================
 // LEAD SCORING
@@ -251,18 +283,13 @@ export function getLeadGrade(score: number): 'HOT' | 'WARM' | 'COLD' {
 // LEADS - COLLABORATIVE
 // ============================================
 
-/**
- * Get ALL leads (semua user bisa lihat semua lead)
- * Pakai view active_leads yang sudah include join user_profiles
- * Otomatis filter deleted_at IS NULL via view
- */
 export async function getAllLeads(filters?: {
   status?: string;
   assignedTo?: string;
   createdBy?: string;
 }) {
   let query = supabase
-    .from('active_leads')   // ← pakai VIEW, bukan table langsung
+    .from('active_leads')
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -281,13 +308,9 @@ export async function getAllLeads(filters?: {
   return (data as Lead[]) || [];
 }
 
-/**
- * Get single lead by ID
- * Tetap filter deleted_at IS NULL via RLS policy
- */
 export async function getLeadById(leadId: string) {
   const { data, error } = await supabase
-    .from('active_leads')   // ← pakai VIEW
+    .from('active_leads')
     .select('*')
     .eq('id', leadId)
     .single();
@@ -296,18 +319,11 @@ export async function getLeadById(leadId: string) {
   return data as Lead;
 }
 
-/**
- * Create lead baru
- * created_by, creator_name → diisi otomatis oleh trigger set_audit_fields()
- * Tidak perlu pass user_id manual
- */
 export async function createLead(
   leadData: {
-    // Wajib diisi
     name: string;
     source: string;
     status: string;
-    // Optional
     email?: string | null;
     phone?: string | null;
     unit_interest?: string | null;
@@ -327,7 +343,6 @@ export async function createLead(
   const { data, error } = await supabase
     .from('leads')
     .insert({
-      // Default semua optional field ke null jika tidak diisi
       email:              leadData.email ?? null,
       phone:              leadData.phone ?? null,
       unit_interest:      leadData.unit_interest ?? null,
@@ -336,7 +351,6 @@ export async function createLead(
       assigned_to:        leadData.assigned_to ?? null,
       contacted_at:       leadData.contacted_at ?? null,
       last_follow_up_at:  leadData.last_follow_up_at ?? null,
-      // Selalu diisi
       name:               leadData.name,
       source:             leadData.source,
       status:             leadData.status,
@@ -351,12 +365,7 @@ export async function createLead(
   return data as Lead;
 }
 
-/**
- * Update lead
- * edited_by, editor_name → diisi otomatis oleh trigger set_edited_by()
- */
 export async function updateLead(leadId: string, updates: Partial<Lead>) {
-  // Recalculate score jika field relevan berubah
   const needsRecalc =
     updates.budget !== undefined ||
     updates.status !== undefined ||
@@ -377,13 +386,12 @@ export async function updateLead(leadId: string, updates: Partial<Lead>) {
     }
   }
 
-  // Hapus field view-only agar tidak error saat update
   const {
     creator_display_name,
     creator_role,
     assignee_display_name,
     assignee_phone,
-    deleted_at,    // jangan update deleted_at manual, pakai soft_delete()
+    deleted_at,
     ...safeUpdates
   } = updates;
 
@@ -398,10 +406,6 @@ export async function updateLead(leadId: string, updates: Partial<Lead>) {
   return data as Lead;
 }
 
-/**
- * Soft delete lead via RPC
- * Data tidak hilang, bisa di-restore oleh admin/manager
- */
 export async function deleteLead(leadId: string): Promise<SoftDeleteResult> {
   const { data, error } = await supabase
     .rpc('soft_delete', {
@@ -419,9 +423,6 @@ export async function deleteLead(leadId: string): Promise<SoftDeleteResult> {
   return result;
 }
 
-/**
- * Restore lead yang sudah di-soft-delete (admin/manager only)
- */
 export async function restoreLead(leadId: string): Promise<SoftDeleteResult> {
   const { data, error } = await supabase
     .rpc('restore_record', {
@@ -439,11 +440,6 @@ export async function restoreLead(leadId: string): Promise<SoftDeleteResult> {
   return result;
 }
 
-/**
- * Assign lead ke team member
- * PENTING: value adalah user_id dari team_members (auth.users.id)
- * bukan team_members.id
- */
 export async function assignLead(leadId: string, assignedTo: string | null) {
   const { error } = await supabase
     .from('leads')
@@ -454,45 +450,60 @@ export async function assignLead(leadId: string, assignedTo: string | null) {
 }
 
 // ============================================
-// FOLLOW UP LOGS - COLLABORATIVE
+// FOLLOW UP LOGS - COLLABORATIVE (UPDATED)
 // ============================================
 
-/**
- * Get semua follow-up untuk lead tertentu
- * Semua user bisa lihat (via RLS policy follow_up_select)
- */
 export async function getFollowUpLogs(leadId: string) {
   const { data, error } = await supabase
     .from('follow_up_logs')
     .select('*')
     .eq('lead_id', leadId)
-    .is('deleted_at', null)          // filter soft delete
+    .is('deleted_at', null)
     .order('contact_date', { ascending: false });
 
   if (error) throw error;
   return (data as FollowUpLog[]) || [];
 }
 
-/**
- * Tambah follow-up log
- * user_id harus = auth.uid() (dicek via RLS policy follow_up_insert)
- */
 export async function addFollowUpLog(
-  followUp: Omit<FollowUpLog, 'id' | 'created_at' | 'user_role' | 'user_name' | 'deleted_at'>,
+  followUp: {
+    lead_id: string;
+    contact_date: string;
+    contact_method: 'call' | 'whatsapp' | 'email' | 'visit';
+    outcome:
+      | 'interested'
+      | 'not_interested'
+      | 'need_info'
+      | 'agreed_survey'
+      | 'survey_done'
+      | 'agreed_booking';
+    notes?: string | null;
+    next_follow_up_date?: string | null;
+    next_action?:
+      | 'call'
+      | 'send_info'
+      | 'schedule_survey'
+      | 'send_proposal'
+      | 'close'
+      | null;
+  },
   userId: string
 ) {
   const { data, error } = await supabase
     .from('follow_up_logs')
     .insert({
       ...followUp,
-      user_id: userId,    // harus sama dengan auth.uid()
+      notes: followUp.notes ?? null,
+      next_follow_up_date: followUp.next_follow_up_date ?? null,
+      next_action: followUp.next_action ?? null,
+      user_id: userId,
     })
     .select()
     .single();
 
   if (error) throw error;
 
-  // Update lead's last_follow_up_at dan contacted_at
+  // Update lead's last_follow_up_at & contacted_at
   await supabase
     .from('leads')
     .update({
@@ -505,8 +516,54 @@ export async function addFollowUpLog(
 }
 
 /**
- * Get lead + follow-ups sekaligus
+ * ✅ NEW: Update follow-up log (dengan audit trail)
  */
+export async function updateFollowUpLog(
+  logId: string,
+  updates: {
+    contact_date?: string;
+    contact_method?: 'call' | 'whatsapp' | 'email' | 'visit';
+    outcome?: 'interested' | 'not_interested' | 'need_info' | 'agreed_survey' | 'survey_done' | 'agreed_booking';
+    notes?: string | null;
+    next_follow_up_date?: string | null;
+    next_action?: 'call' | 'send_info' | 'schedule_survey' | 'send_proposal' | 'close' | null;
+  }
+) {
+  const { data, error } = await supabase
+    .from('follow_up_logs')
+    .update({
+      ...updates,
+      // edited_by, edited_at, editor_name, editor_role
+      // akan auto-fill oleh trigger set_followup_audit
+    })
+    .eq('id', logId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as FollowUpLog;
+}
+
+/**
+ * ✅ NEW: Soft delete follow-up (hanya creator/admin/manager)
+ */
+export async function deleteFollowUpLog(logId: string): Promise<SoftDeleteResult> {
+  const { data, error } = await supabase
+    .rpc('soft_delete', {
+      p_table: 'follow_up_logs',
+      p_id: logId,
+    });
+
+  if (error) throw error;
+
+  const result = data as SoftDeleteResult;
+  if (!result.success) {
+    throw new Error(result.error || 'Delete gagal');
+  }
+
+  return result;
+}
+
 export async function getLeadWithFollowUps(leadId: string) {
   const [leadResult, followUpsResult] = await Promise.all([
     supabase
@@ -534,11 +591,6 @@ export async function getLeadWithFollowUps(leadId: string) {
 // TEAM MEMBERS
 // ============================================
 
-/**
- * Get semua team member aktif
- * PENTING untuk AssignLead: gunakan member.user_id (bukan member.id)
- * sebagai value di Select component
- */
 export async function getTeamMembers() {
   const { data, error } = await supabase
     .from('team_members')
@@ -610,19 +662,17 @@ export async function getAllBookings() {
 }
 
 export async function createBooking(
-  bookingData: Omit<
-    Booking,
-    | 'id'
-    | 'created_at'
-    | 'updated_at'
-    | 'created_by'
-    | 'edited_by'
-    | 'creator_name'
-    | 'editor_name'
-    | 'deleted_at'
-    | 'leads'
-    | 'units'
-  >
+  bookingData: {
+    lead_id: string | null;
+    unit_id: string | null;
+    booking_date: string;
+    status: string;
+    amount: number;
+    notes?: string | null;
+    booking_number?: string | null;
+    payment_method?: string | null;
+    payment_details?: string | null;
+  }
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User tidak terautentikasi');
@@ -631,6 +681,10 @@ export async function createBooking(
     .from('bookings')
     .insert({
       ...bookingData,
+      notes: bookingData.notes ?? null,
+      booking_number: bookingData.booking_number ?? null,
+      payment_method: bookingData.payment_method ?? null,
+      payment_details: bookingData.payment_details ?? null,
       user_id: user.id,
     })
     .select()
@@ -641,7 +695,6 @@ export async function createBooking(
 }
 
 export async function updateBooking(bookingId: string, updates: Partial<Booking>) {
-  // Hapus field relasi agar tidak error
   const { leads, units, deleted_at, ...safeUpdates } = updates;
 
   const { data, error } = await supabase
@@ -685,7 +738,7 @@ export async function getAllUnits() {
 }
 
 // ============================================
-// TASKS - COLLABORATIVE
+// TASKS - COLLABORATIVE (UPDATED)
 // ============================================
 
 export async function getAllTasks() {
@@ -703,18 +756,22 @@ export async function getAllTasks() {
 }
 
 export async function createTask(
-  taskData: Omit<
-    Task,
-    | 'id'
-    | 'created_at'
-    | 'updated_at'
-    | 'created_by'
-    | 'edited_by'
-    | 'creator_name'
-    | 'editor_name'
-    | 'deleted_at'
-    | 'leads'
-  >
+  taskData: {
+    title: string;
+    description?: string | null;
+    status?: string;
+    priority?: string;
+    due_date?: string | null;
+    related_lead_id?: string | null;
+    
+    // ✅ NEW: Assignment
+    assigned_to?: string | null;
+    
+    // ✅ NEW: Recurring
+    is_recurring?: boolean;
+    recurrence_pattern?: string | null;
+    recurrence_end_date?: string | null;
+  }
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User tidak terautentikasi');
@@ -722,8 +779,18 @@ export async function createTask(
   const { data, error } = await supabase
     .from('tasks')
     .insert({
-      ...taskData,
+      title: taskData.title,
+      description: taskData.description ?? null,
+      status: taskData.status ?? 'todo',
+      priority: taskData.priority ?? 'medium',
+      due_date: taskData.due_date ?? null,
+      related_lead_id: taskData.related_lead_id ?? null,
+      assigned_to: taskData.assigned_to ?? null,
+      is_recurring: taskData.is_recurring ?? false,
+      recurrence_pattern: taskData.recurrence_pattern ?? null,
+      recurrence_end_date: taskData.recurrence_end_date ?? null,
       user_id: user.id,
+      // assigned_to_name akan auto-fill oleh trigger
     })
     .select()
     .single();
@@ -733,7 +800,14 @@ export async function createTask(
 }
 
 export async function updateTask(taskId: string, updates: Partial<Task>) {
-  const { leads, deleted_at, ...safeUpdates } = updates;
+  const { 
+    leads, 
+    deleted_at, 
+    creator_name,
+    editor_name,
+    assigned_to_name, // Jangan update manual, auto-fill oleh trigger
+    ...safeUpdates 
+  } = updates;
 
   const { data, error } = await supabase
     .from('tasks')
@@ -760,8 +834,23 @@ export async function deleteTask(taskId: string): Promise<SoftDeleteResult> {
   return result;
 }
 
+/**
+ * ✅ NEW: Update task status only (untuk assignee yang bukan creator)
+ */
+export async function updateTaskStatus(taskId: string, newStatus: string) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ status: newStatus })
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Task;
+}
+
 // ============================================
-// EXPENSES - COLLABORATIVE
+// EXPENSES - COLLABORATIVE (UPDATED)
 // ============================================
 
 export async function getAllExpenses() {
@@ -774,13 +863,113 @@ export async function getAllExpenses() {
   return (data as Expense[]) || [];
 }
 
+export async function createExpense(
+  expenseData: {
+    title: string;
+    description?: string | null;
+    category: string;
+    amount: number;
+    date: string;
+    receipt_url?: string | null;
+  }
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User tidak terautentikasi');
+
+  const { data, error } = await supabase
+    .from('expenses')
+    .insert({
+      title: expenseData.title,
+      description: expenseData.description ?? null,
+      category: expenseData.category,
+      amount: expenseData.amount,
+      date: expenseData.date,
+      receipt_url: expenseData.receipt_url ?? null,
+      user_id: user.id,
+      // approval_status, approved_by, approver_name
+      // akan auto-set oleh trigger auto_approve_admin
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Expense;
+}
+
+export async function updateExpense(expenseId: string, updates: Partial<Expense>) {
+  const { 
+    creator_name,
+    editor_name,
+    approver_name,
+    approval_status,
+    approved_by,
+    approved_at,
+    ...safeUpdates 
+  } = updates;
+
+  const { data, error } = await supabase
+    .from('expenses')
+    .update(safeUpdates)
+    .eq('id', expenseId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Expense;
+}
+
+/**
+ * ✅ NEW: Approve expense (admin/manager only)
+ */
+export async function approveExpense(expenseId: string, approverId: string) {
+  const { data, error } = await supabase
+    .from('expenses')
+    .update({
+      approval_status: 'approved',
+      approved_by: approverId,
+      approved_at: new Date().toISOString(),
+    })
+    .eq('id', expenseId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Expense;
+}
+
+/**
+ * ✅ NEW: Reject expense (admin/manager only)
+ */
+export async function rejectExpense(expenseId: string, approverId: string, reason: string) {
+  const { data, error } = await supabase
+    .from('expenses')
+    .update({
+      approval_status: 'rejected',
+      approved_by: approverId,
+      approved_at: new Date().toISOString(),
+      rejection_reason: reason,
+    })
+    .eq('id', expenseId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Expense;
+}
+
+export async function deleteExpense(expenseId: string) {
+  const { error } = await supabase
+    .from('expenses')
+    .delete()
+    .eq('id', expenseId);
+
+  if (error) throw error;
+}
+
 // ============================================
 // HISTORY & AUDIT
 // ============================================
 
-/**
- * Get history perubahan untuk satu record
- */
 export async function getRecordHistory(
   tableName: string,
   recordId: string
@@ -796,9 +985,6 @@ export async function getRecordHistory(
   return data || [];
 }
 
-/**
- * Get recent activity untuk dashboard
- */
 export async function getRecentActivity(limit = 20) {
   const { data, error } = await supabase
     .from('recent_activity')
@@ -809,9 +995,6 @@ export async function getRecentActivity(limit = 20) {
   return data || [];
 }
 
-/**
- * Get recycle bin (data yang di-soft-delete)
- */
 export async function getDeletedRecords() {
   const { data, error } = await supabase
     .from('deleted_records')
@@ -822,9 +1005,6 @@ export async function getDeletedRecords() {
   return data || [];
 }
 
-/**
- * Restore record dari recycle bin (admin/manager only)
- */
 export async function restoreRecord(
   tableName: string,
   recordId: string
@@ -846,9 +1026,6 @@ export async function restoreRecord(
 // LEAD SCORE RULES (Admin/Manager)
 // ============================================
 
-/**
- * Get lead score rules (semua user bisa lihat, bukan hanya milik sendiri)
- */
 export async function getLeadScoreRules() {
   const { data, error } = await supabase
     .from('lead_score_rules')
@@ -879,138 +1056,3 @@ export async function updateLeadScore(leadId: string) {
 
   if (updateError) throw updateError;
 }
-
-// ============================================
-// UPDATED TYPE DEFINITIONS (tambahkan di bawah existing types)
-// ============================================
-
-// Update FollowUpLog type (replace existing)
-export type FollowUpLog = {
-  id: string;
-  lead_id: string;
-  user_id: string;
-  contact_date: string;
-  contact_method: 'call' | 'whatsapp' | 'email' | 'visit';
-  outcome:
-    | 'interested'
-    | 'not_interested'
-    | 'need_info'
-    | 'agreed_survey'
-    | 'survey_done'
-    | 'agreed_booking';
-  notes: string | null;
-  next_follow_up_date: string | null;
-  next_action:
-    | 'call'
-    | 'send_info'
-    | 'schedule_survey'
-    | 'send_proposal'
-    | 'close'
-    | null;
-  
-  // Creator info
-  user_role: string | null;
-  user_name: string | null;
-  
-  // ✅ NEW: Editor audit trail
-  edited_by: string | null;
-  edited_at: string | null;
-  editor_name: string | null;
-  editor_role: string | null;
-  
-  deleted_at: string | null;
-  created_at: string;
-};
-
-// Update Task type (replace existing)
-export type Task = {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  due_date: string | null;
-  related_lead_id: string | null;
-  
-  // ✅ NEW: Assignment
-  assigned_to: string | null;
-  assigned_to_name: string | null;
-  
-  // ✅ NEW: Recurring
-  is_recurring: boolean;
-  recurrence_pattern: string | null;
-  recurrence_end_date: string | null;
-  parent_task_id: string | null;
-  
-  // Audit fields
-  created_by: string | null;
-  edited_by: string | null;
-  creator_name: string | null;
-  editor_name: string | null;
-  deleted_at: string | null;
-  
-  created_at: string;
-  updated_at: string;
-  
-  // Relations
-  leads?: Lead | null;
-};
-
-// Update Booking type (replace existing)
-export type Booking = {
-  id: string;
-  user_id: string;
-  lead_id: string | null;
-  unit_id: string | null;
-  booking_date: string;
-  status: string;
-  amount: number;
-  notes: string | null;
-  booking_number: string | null;
-  
-  // ✅ NEW: Payment info
-  payment_method: string | null;
-  payment_details: string | null;
-  
-  // Audit fields
-  created_by: string | null;
-  edited_by: string | null;
-  creator_name: string | null;
-  editor_name: string | null;
-  deleted_at: string | null;
-  
-  created_at: string;
-  updated_at: string;
-  
-  // Relations
-  leads?: Lead | null;
-  units?: Unit | null;
-};
-
-// Update Expense type (replace existing)
-export type Expense = {
-  id: string;
-  title: string;
-  description: string | null;
-  category: string;
-  amount: number;
-  date: string;
-  
-  // ✅ NEW: Receipt & approval
-  receipt_url: string | null;
-  approval_status: string;
-  approved_by: string | null;
-  approved_at: string | null;
-  approver_name: string | null;
-  rejection_reason: string | null;
-  
-  // Audit fields
-  created_by: string | null;
-  edited_by: string | null;
-  creator_name: string | null;
-  editor_name: string | null;
-  
-  created_at: string;
-  updated_at: string;
-};
