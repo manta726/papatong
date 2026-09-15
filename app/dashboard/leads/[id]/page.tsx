@@ -19,7 +19,7 @@ import {
 import { formatRupiah, formatRupiahInput, parseBudget } from '@/lib/format';
 import { LeadGradeBadge } from '@/components/leads/lead-grade-badge';
 import { FollowUpForm } from '@/components/leads/follow-up-form';
-import { FollowUpList } from '@/components/leads/follow-up-list';
+import { FollowUpHistory } from '@/components/leads/follow-up-history';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -731,7 +731,10 @@ export default function LeadDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FollowUpList logs={followUps} />
+          <FollowUpHistory 
+            followUps={followUps} 
+            currentUserId={user?.id}
+          />
         </CardContent>
       </Card>
     </div>
