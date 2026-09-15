@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { supabase, Task, getAllTasks, UserProfile } from '@/lib/supabase/client';
+import { supabase, Task } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,11 +52,15 @@ import {
   Pencil,
   User,
   Repeat,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// ============================================
+// TYPES
+// ============================================
+
 type LeadOption = { id: string; name: string };
+type AssigneeOption = { id: string; name: string; role: string };
 
 const taskStatuses = ['todo', 'in_progress', 'done'];
 const priorities = ['low', 'medium', 'high'];
@@ -99,13 +103,17 @@ const priorityColors: Record<string, string> = {
   low: 'bg-green-500',
 };
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function TasksPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<LeadOption[]>([]);
-  const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
+  const [teamMembers, setTeamMembers] = useState<AssigneeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -188,15 +196,17 @@ export default function TasksPage() {
       .from('active_leads')
       .select('id, name')
       .order('name')
-      .then(({ data }) => setLeads(data ?? []));
+      .then(({ data }) => setLeads((data as LeadOption[]) ?? []));
 
     // Load team members (for assignment)
     supabase
       .from('user_profiles')
-      .select('id, name, email, role')
+      .select('id, name, role')
       .eq('is_active', true)
       .order('name')
-      .then(({ data }) => setTeamMembers(data ?? []));
+      .then(({ data }) => {
+        setTeamMembers((data as AssigneeOption[]) ?? []);
+      });
 
   }, [fetchTasks, authLoading, user]);
 
@@ -207,7 +217,7 @@ export default function TasksPage() {
   const openAdd = () => {
     setForm({
       ...emptyForm,
-      assigned_to: user?.id ?? '', // Default assigned to self
+      assigned_to: user?.id ?? '',
     });
     setEditingId(null);
     setDialogOpen(true);
@@ -235,7 +245,6 @@ export default function TasksPage() {
     if (!user) return;
     setSaving(true);
 
-    // Validation
     if (form.is_recurring && !form.recurrence_pattern) {
       toast({
         title: 'Recurrence pattern required',
@@ -278,10 +287,10 @@ export default function TasksPage() {
           .insert(payload);
 
         if (error) throw error;
-        toast({ 
+        toast({
           title: form.is_recurring ? '🔄 Recurring task created' : '✅ Task created',
-          description: form.is_recurring 
-            ? `Will repeat ${form.recurrence_pattern}` 
+          description: form.is_recurring
+            ? `Will repeat ${form.recurrence_pattern}`
             : undefined,
         });
       }
@@ -299,7 +308,6 @@ export default function TasksPage() {
     }
   };
 
-  // ✅ Status change (assignee bisa update)
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     try {
       const { error } = await supabase
@@ -469,8 +477,8 @@ export default function TasksPage() {
                                   {task.title}
                                 </p>
                                 {task.is_recurring && (
-                                  <Badge 
-                                    variant="outline" 
+                                  <Badge
+                                    variant="outline"
                                     className="text-xs shrink-0 flex items-center gap-1"
                                   >
                                     <Repeat className="w-3 h-3" />
@@ -503,7 +511,7 @@ export default function TasksPage() {
                                 )}
                               </div>
 
-                              {/* ✅ NEW: Assignee info */}
+                              {/* Assignee info */}
                               {task.assigned_to_name && (
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <User className="w-3 h-3 text-muted-foreground" />
@@ -652,7 +660,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            {/* ✅ NEW: Assigned To */}
+            {/* Assigned To */}
             <div className="space-y-2">
               <Label htmlFor="assigned_to">
                 <User className="w-3 h-3 inline mr-1" />
@@ -716,7 +724,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            {/* ✅ NEW: Recurring Task */}
+            {/* Recurring Task */}
             <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -773,8 +781,7 @@ export default function TasksPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    💡 A new instance will be created automatically. 
-                    You can also run{' '}
+                    💡 A new instance will be created automatically. Run{' '}
                     <code className="bg-background px-1 rounded">
                       SELECT generate_recurring_tasks()
                     </code>{' '}
@@ -810,7 +817,8 @@ export default function TasksPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Task?</AlertDialogTitle>
             <AlertDialogDescription>
-              Task <strong>{deleteTarget?.title}</strong> akan dipindahkan ke recycle bin.
+              Task <strong>{deleteTarget?.title}</strong> akan dipindahkan ke
+              recycle bin.
               {deleteTarget?.is_recurring && (
                 <span className="block mt-2 text-amber-600">
                   ⚠️ Ini task berulang. Hanya instance ini yang dihapus.
