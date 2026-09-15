@@ -879,3 +879,138 @@ export async function updateLeadScore(leadId: string) {
 
   if (updateError) throw updateError;
 }
+
+// ============================================
+// UPDATED TYPE DEFINITIONS (tambahkan di bawah existing types)
+// ============================================
+
+// Update FollowUpLog type (replace existing)
+export type FollowUpLog = {
+  id: string;
+  lead_id: string;
+  user_id: string;
+  contact_date: string;
+  contact_method: 'call' | 'whatsapp' | 'email' | 'visit';
+  outcome:
+    | 'interested'
+    | 'not_interested'
+    | 'need_info'
+    | 'agreed_survey'
+    | 'survey_done'
+    | 'agreed_booking';
+  notes: string | null;
+  next_follow_up_date: string | null;
+  next_action:
+    | 'call'
+    | 'send_info'
+    | 'schedule_survey'
+    | 'send_proposal'
+    | 'close'
+    | null;
+  
+  // Creator info
+  user_role: string | null;
+  user_name: string | null;
+  
+  // ✅ NEW: Editor audit trail
+  edited_by: string | null;
+  edited_at: string | null;
+  editor_name: string | null;
+  editor_role: string | null;
+  
+  deleted_at: string | null;
+  created_at: string;
+};
+
+// Update Task type (replace existing)
+export type Task = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  related_lead_id: string | null;
+  
+  // ✅ NEW: Assignment
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  
+  // ✅ NEW: Recurring
+  is_recurring: boolean;
+  recurrence_pattern: string | null;
+  recurrence_end_date: string | null;
+  parent_task_id: string | null;
+  
+  // Audit fields
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
+  deleted_at: string | null;
+  
+  created_at: string;
+  updated_at: string;
+  
+  // Relations
+  leads?: Lead | null;
+};
+
+// Update Booking type (replace existing)
+export type Booking = {
+  id: string;
+  user_id: string;
+  lead_id: string | null;
+  unit_id: string | null;
+  booking_date: string;
+  status: string;
+  amount: number;
+  notes: string | null;
+  booking_number: string | null;
+  
+  // ✅ NEW: Payment info
+  payment_method: string | null;
+  payment_details: string | null;
+  
+  // Audit fields
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
+  deleted_at: string | null;
+  
+  created_at: string;
+  updated_at: string;
+  
+  // Relations
+  leads?: Lead | null;
+  units?: Unit | null;
+};
+
+// Update Expense type (replace existing)
+export type Expense = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  amount: number;
+  date: string;
+  
+  // ✅ NEW: Receipt & approval
+  receipt_url: string | null;
+  approval_status: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  approver_name: string | null;
+  rejection_reason: string | null;
+  
+  // Audit fields
+  created_by: string | null;
+  edited_by: string | null;
+  creator_name: string | null;
+  editor_name: string | null;
+  
+  created_at: string;
+  updated_at: string;
+};
