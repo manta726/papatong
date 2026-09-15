@@ -545,7 +545,6 @@ export default function LeadDetailPage({
           {user && (
             <FollowUpForm
               leadId={params.id}
-              userId={user.id}
               onSuccess={(log) =>
                 setFollowUps([log, ...followUps])
               }
