@@ -448,9 +448,8 @@ export async function assignLead(leadId: string, assignedTo: string | null) {
 
   if (error) throw error;
 }
-
 // ============================================
-// FOLLOW UP LOGS - COLLABORATIVE (UPDATED)
+// FOLLOW UP LOGS - COLLABORATIVE (UPDATED - 1 argument)
 // ============================================
 
 export async function getFollowUpLogs(leadId: string) {
@@ -465,6 +464,7 @@ export async function getFollowUpLogs(leadId: string) {
   return (data as FollowUpLog[]) || [];
 }
 
+// ✅ FIXED: 1 argument, user_id inside object
 export async function addFollowUpLog(
   followUp: {
     lead_id: string;
@@ -486,9 +486,12 @@ export async function addFollowUpLog(
       | 'send_proposal'
       | 'close'
       | null;
-  },
-  userId: string
+    user_id?: string; // Optional, fallback to auth.uid()
+  }
 ) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User tidak terautentikasi');
+
   const { data, error } = await supabase
     .from('follow_up_logs')
     .insert({
@@ -496,7 +499,7 @@ export async function addFollowUpLog(
       notes: followUp.notes ?? null,
       next_follow_up_date: followUp.next_follow_up_date ?? null,
       next_action: followUp.next_action ?? null,
-      user_id: userId,
+      user_id: followUp.user_id ?? user.id,
     })
     .select()
     .single();
@@ -515,27 +518,32 @@ export async function addFollowUpLog(
   return data as FollowUpLog;
 }
 
-/**
- * ✅ NEW: Update follow-up log (dengan audit trail)
- */
 export async function updateFollowUpLog(
   logId: string,
   updates: {
     contact_date?: string;
     contact_method?: 'call' | 'whatsapp' | 'email' | 'visit';
-    outcome?: 'interested' | 'not_interested' | 'need_info' | 'agreed_survey' | 'survey_done' | 'agreed_booking';
+    outcome?:
+      | 'interested'
+      | 'not_interested'
+      | 'need_info'
+      | 'agreed_survey'
+      | 'survey_done'
+      | 'agreed_booking';
     notes?: string | null;
     next_follow_up_date?: string | null;
-    next_action?: 'call' | 'send_info' | 'schedule_survey' | 'send_proposal' | 'close' | null;
+    next_action?:
+      | 'call'
+      | 'send_info'
+      | 'schedule_survey'
+      | 'send_proposal'
+      | 'close'
+      | null;
   }
 ) {
   const { data, error } = await supabase
     .from('follow_up_logs')
-    .update({
-      ...updates,
-      // edited_by, edited_at, editor_name, editor_role
-      // akan auto-fill oleh trigger set_followup_audit
-    })
+    .update(updates)
     .eq('id', logId)
     .select()
     .single();
@@ -544,10 +552,9 @@ export async function updateFollowUpLog(
   return data as FollowUpLog;
 }
 
-/**
- * ✅ NEW: Soft delete follow-up (hanya creator/admin/manager)
- */
-export async function deleteFollowUpLog(logId: string): Promise<SoftDeleteResult> {
+export async function deleteFollowUpLog(
+  logId: string
+): Promise<SoftDeleteResult> {
   const { data, error } = await supabase
     .rpc('soft_delete', {
       p_table: 'follow_up_logs',
@@ -563,7 +570,6 @@ export async function deleteFollowUpLog(logId: string): Promise<SoftDeleteResult
 
   return result;
 }
-
 export async function getLeadWithFollowUps(leadId: string) {
   const [leadResult, followUpsResult] = await Promise.all([
     supabase
