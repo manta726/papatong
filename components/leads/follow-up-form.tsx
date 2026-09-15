@@ -1,3 +1,4 @@
+// components/leads/follow-up-form.tsx - FIXED
 'use client';
 
 import { useState } from 'react';
@@ -12,11 +13,10 @@ import { Loader2 } from 'lucide-react';
 
 interface FollowUpFormProps {
   leadId: string;
-  userId: string;
   onSuccess: (log: FollowUpLog) => void;
 }
 
-export function FollowUpForm({ leadId, userId, onSuccess }: FollowUpFormProps) {
+export function FollowUpForm({ leadId, onSuccess }: FollowUpFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -32,19 +32,18 @@ export function FollowUpForm({ leadId, userId, onSuccess }: FollowUpFormProps) {
     setLoading(true);
 
     try {
-      const log = await addFollowUpLog(
-        {
-          lead_id: leadId,
-          user_id: userId,
-          contact_date: new Date().toISOString(),
-          contact_method: form.contact_method,
-          outcome: form.outcome,
-          notes: form.notes || null,
-          next_action: form.next_action,
-          next_follow_up_date: form.next_follow_up_date ? new Date(form.next_follow_up_date).toISOString() : null,
-        },
-        userId
-      );
+      // ✅ FIX: Don't pass user_id - will be auto-filled by trigger
+      const log = await addFollowUpLog({
+        lead_id: leadId,
+        contact_date: new Date().toISOString(),
+        contact_method: form.contact_method,
+        outcome: form.outcome,
+        notes: form.notes || null,
+        next_action: form.next_action,
+        next_follow_up_date: form.next_follow_up_date 
+          ? new Date(form.next_follow_up_date).toISOString() 
+          : null,
+      });
 
       toast({ title: 'Follow-up logged successfully' });
       onSuccess(log);
