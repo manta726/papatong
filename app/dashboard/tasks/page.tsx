@@ -1,15 +1,20 @@
-// app/dashboard/tasks/page.tsx - COLLABORATIVE FIXED
+// app/dashboard/tasks/page.tsx - COLLABORATIVE WITH ASSIGNMENT & RECURRING
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { supabase, Task } from '@/lib/supabase/client';
+import { supabase, Task, getAllTasks, UserProfile } from '@/lib/supabase/client';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -36,6 +41,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -45,13 +51,21 @@ import {
   Trash2,
   Pencil,
   User,
+  Repeat,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type LeadOption = { id: string; name: string };
 
 const taskStatuses = ['todo', 'in_progress', 'done'];
-const priorities   = ['low', 'medium', 'high'];
+const priorities = ['low', 'medium', 'high'];
+const recurrencePatterns = [
+  { value: 'daily', label: 'Every Day' },
+  { value: 'weekly', label: 'Every Week' },
+  { value: 'monthly', label: 'Every Month' },
+  { value: 'yearly', label: 'Every Year' },
+];
 
 type FormData = {
   title: string;
@@ -60,6 +74,10 @@ type FormData = {
   priority: string;
   due_date: string;
   related_lead_id: string;
+  assigned_to: string;
+  is_recurring: boolean;
+  recurrence_pattern: string;
+  recurrence_end_date: string;
 };
 
 const emptyForm: FormData = {
@@ -69,58 +87,84 @@ const emptyForm: FormData = {
   priority: 'medium',
   due_date: '',
   related_lead_id: '',
+  assigned_to: '',
+  is_recurring: false,
+  recurrence_pattern: '',
+  recurrence_end_date: '',
 };
 
 const priorityColors: Record<string, string> = {
-  high:   'bg-destructive',
+  high: 'bg-destructive',
   medium: 'bg-yellow-400',
-  low:    'bg-green-500',
+  low: 'bg-green-500',
 };
 
 export default function TasksPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  const [tasks, setTasks]   = useState<Task[]>([]);
-  const [leads, setLeads]   = useState<LeadOption[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [leads, setLeads] = useState<LeadOption[]>([]);
+  const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId]   = useState<string | null>(null);
-  const [form, setForm]     = useState<FormData>(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // ✅ Delete confirmation
+  // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  // ✅ Role checks
+  // Filter
+  const [filterAssignee, setFilterAssignee] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Role checks
   const isAdminOrManager =
     profile?.role === 'admin' || profile?.role === 'manager';
 
   const canEditTask = (t: Task) =>
     t.created_by === user?.id ||
-    t.user_id    === user?.id ||
+    t.user_id === user?.id ||
+    t.assigned_to === user?.id ||
     isAdminOrManager;
 
   const canDeleteTask = (t: Task) =>
     t.created_by === user?.id ||
-    t.user_id    === user?.id ||
+    t.user_id === user?.id ||
     profile?.role === 'admin';
 
   // ============================================
-  // DATA FETCHING - COLLABORATIVE
+  // DATA FETCHING
   // ============================================
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
     setLoading(true);
 
-    // ✅ FIX: Hapus .eq('user_id') → semua task tim
-    const { data, error } = await supabase
+    let query = supabase
       .from('tasks')
-      .select('*, leads:related_lead_id(*)')
-      .is('deleted_at', null)           // ✅ filter soft delete
+      .select(`
+        *,
+        leads:related_lead_id(*)
+      `)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
+
+    if (filterAssignee !== 'all') {
+      if (filterAssignee === 'unassigned') {
+        query = query.is('assigned_to', null);
+      } else {
+        query = query.eq('assigned_to', filterAssignee);
+      }
+    }
+
+    if (filterStatus !== 'all') {
+      query = query.eq('status', filterStatus);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({
@@ -132,19 +176,27 @@ export default function TasksPage() {
       setTasks(data ?? []);
     }
     setLoading(false);
-  }, [toast, user]);
+  }, [filterAssignee, filterStatus, toast, user]);
 
   useEffect(() => {
     if (authLoading || !user) return;
 
     fetchTasks();
 
-    // ✅ FIX: Load semua leads (bukan hanya milik sendiri)
+    // Load leads
     supabase
       .from('active_leads')
       .select('id, name')
       .order('name')
       .then(({ data }) => setLeads(data ?? []));
+
+    // Load team members (for assignment)
+    supabase
+      .from('user_profiles')
+      .select('id, name, email, role')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => setTeamMembers(data ?? []));
 
   }, [fetchTasks, authLoading, user]);
 
@@ -153,19 +205,26 @@ export default function TasksPage() {
   // ============================================
 
   const openAdd = () => {
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      assigned_to: user?.id ?? '', // Default assigned to self
+    });
     setEditingId(null);
     setDialogOpen(true);
   };
 
   const openEdit = (t: Task) => {
     setForm({
-      title:           t.title,
-      description:     t.description ?? '',
-      status:          t.status,
-      priority:        t.priority,
-      due_date:        t.due_date ?? '',
+      title: t.title,
+      description: t.description ?? '',
+      status: t.status,
+      priority: t.priority,
+      due_date: t.due_date ?? '',
       related_lead_id: t.related_lead_id ?? '',
+      assigned_to: t.assigned_to ?? '',
+      is_recurring: t.is_recurring ?? false,
+      recurrence_pattern: t.recurrence_pattern ?? '',
+      recurrence_end_date: t.recurrence_end_date ?? '',
     });
     setEditingId(t.id);
     setDialogOpen(true);
@@ -176,19 +235,36 @@ export default function TasksPage() {
     if (!user) return;
     setSaving(true);
 
+    // Validation
+    if (form.is_recurring && !form.recurrence_pattern) {
+      toast({
+        title: 'Recurrence pattern required',
+        description: 'Please select how often this task repeats',
+        variant: 'destructive',
+      });
+      setSaving(false);
+      return;
+    }
+
     const payload = {
-      user_id:         user.id,         // kolom lama, tetap diisi
-      title:           form.title,
-      description:     form.description || null,
-      status:          form.status,
-      priority:        form.priority,
-      due_date:        form.due_date || null,
+      user_id: user.id,
+      title: form.title,
+      description: form.description || null,
+      status: form.status,
+      priority: form.priority,
+      due_date: form.due_date || null,
       related_lead_id: form.related_lead_id || null,
+      assigned_to: form.assigned_to || null,
+      is_recurring: form.is_recurring,
+      recurrence_pattern: form.is_recurring ? form.recurrence_pattern : null,
+      recurrence_end_date:
+        form.is_recurring && form.recurrence_end_date
+          ? form.recurrence_end_date
+          : null,
     };
 
     try {
       if (editingId) {
-        // ✅ FIX: Hapus .eq('user_id') → RLS handle permission
         const { error } = await supabase
           .from('tasks')
           .update(payload)
@@ -202,7 +278,12 @@ export default function TasksPage() {
           .insert(payload);
 
         if (error) throw error;
-        toast({ title: '✅ Task created' });
+        toast({ 
+          title: form.is_recurring ? '🔄 Recurring task created' : '✅ Task created',
+          description: form.is_recurring 
+            ? `Will repeat ${form.recurrence_pattern}` 
+            : undefined,
+        });
       }
 
       setDialogOpen(false);
@@ -218,22 +299,27 @@ export default function TasksPage() {
     }
   };
 
-  // ✅ FIX: Hapus .eq('user_id') dari status change
+  // ✅ Status change (assignee bisa update)
   const handleStatusChange = async (taskId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', taskId);
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId);
 
-    if (error) {
-      toast({ title: 'Update failed', variant: 'destructive' });
-    } else {
+      if (error) throw error;
       fetchTasks();
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     }
   };
 
   // ============================================
-  // HANDLERS: DELETE (soft delete + konfirmasi)
+  // HANDLERS: DELETE
   // ============================================
 
   const openDeleteConfirm = (t: Task) => setDeleteTarget(t);
@@ -243,10 +329,9 @@ export default function TasksPage() {
     setDeleting(true);
 
     try {
-      // ✅ FIX: Soft delete via RPC
       const { data, error } = await supabase.rpc('soft_delete', {
         p_table: 'tasks',
-        p_id:    deleteTarget.id,
+        p_id: deleteTarget.id,
       });
 
       if (error) throw error;
@@ -273,9 +358,9 @@ export default function TasksPage() {
   // ============================================
 
   const columns = [
-    { id: 'todo',        title: 'To Do' },
-    { id: 'in_progress', title: 'In Progress' },
-    { id: 'done',        title: 'Done' },
+    { id: 'todo', title: 'To Do', color: 'bg-slate-100' },
+    { id: 'in_progress', title: 'In Progress', color: 'bg-amber-100' },
+    { id: 'done', title: 'Done', color: 'bg-green-100' },
   ];
 
   return (
@@ -292,6 +377,38 @@ export default function TasksPage() {
           <Plus className="w-4 h-4 mr-2" />
           Add Task
         </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Assignee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assignees</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {teamMembers.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            {taskStatuses.map((s) => (
+              <SelectItem key={s} value={s} className="capitalize">
+                {s.replace('_', ' ')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Kanban Board */}
@@ -316,7 +433,8 @@ export default function TasksPage() {
               <Card key={col.id} className="flex flex-col">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <span className={cn('w-2 h-2 rounded-full', col.color)} />
                       {col.title}
                     </CardTitle>
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
@@ -331,9 +449,7 @@ export default function TasksPage() {
                     </p>
                   ) : (
                     colTasks.map((task) => {
-                      const relatedLead = task.leads as
-                        | { name?: string }
-                        | null;
+                      const relatedLead = task.leads as { name?: string } | null;
                       return (
                         <div
                           key={task.id}
@@ -347,9 +463,21 @@ export default function TasksPage() {
                               )}
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium leading-snug">
-                                {task.title}
-                              </p>
+                              {/* Title + Recurring indicator */}
+                              <div className="flex items-start gap-2">
+                                <p className="text-sm font-medium leading-snug flex-1">
+                                  {task.title}
+                                </p>
+                                {task.is_recurring && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs shrink-0 flex items-center gap-1"
+                                  >
+                                    <Repeat className="w-3 h-3" />
+                                    {task.recurrence_pattern}
+                                  </Badge>
+                                )}
+                              </div>
 
                               {task.description && (
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -357,6 +485,7 @@ export default function TasksPage() {
                                 </p>
                               )}
 
+                              {/* Meta info */}
                               <div className="flex items-center gap-2 mt-2 flex-wrap">
                                 <span className="text-xs text-muted-foreground capitalize">
                                   {task.priority}
@@ -374,32 +503,35 @@ export default function TasksPage() {
                                 )}
                               </div>
 
-                              {/* ✅ Creator info */}
-                              {task.creator_name && (
-                                <div className="flex items-center gap-1 mt-1">
+                              {/* ✅ NEW: Assignee info */}
+                              {task.assigned_to_name && (
+                                <div className="flex items-center gap-1.5 mt-1.5">
                                   <User className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">
-                                    {task.creator_name}
+                                  <span className="text-xs text-foreground font-medium">
+                                    {task.assigned_to_name}
                                   </span>
-                                  {task.created_by === user?.id && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs px-1 py-0 h-4"
-                                    >
+                                  {task.assigned_to === user?.id && (
+                                    <Badge variant="secondary" className="text-xs">
                                       You
                                     </Badge>
                                   )}
                                 </div>
                               )}
 
-                              {/* Actions — hanya tampil jika punya akses */}
+                              {/* Creator info */}
+                              {task.creator_name && task.created_by !== task.assigned_to && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    Created by {task.creator_name}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Actions */}
                               <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {/* Status change — semua user bisa */}
                                 <Select
                                   value={task.status}
-                                  onValueChange={(v) =>
-                                    handleStatusChange(task.id, v)
-                                  }
+                                  onValueChange={(v) => handleStatusChange(task.id, v)}
                                 >
                                   <SelectTrigger className="h-7 text-xs w-auto gap-1 px-2">
                                     <SelectValue />
@@ -417,7 +549,6 @@ export default function TasksPage() {
                                   </SelectContent>
                                 </Select>
 
-                                {/* Edit — hanya jika canEditTask */}
                                 {canEditTask(task) && (
                                   <Button
                                     variant="ghost"
@@ -429,7 +560,6 @@ export default function TasksPage() {
                                   </Button>
                                 )}
 
-                                {/* Delete — hanya jika canDeleteTask */}
                                 {canDeleteTask(task) && (
                                   <Button
                                     variant="ghost"
@@ -464,25 +594,25 @@ export default function TasksPage() {
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
-              <Label>Title *</Label>
+              <Label htmlFor="title">Title *</Label>
               <Input
+                id="title"
                 value={form.title}
-                onChange={(e) =>
-                  setForm({ ...form, title: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label htmlFor="description">Description</Label>
               <Textarea
+                id="description"
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={3}
               />
             </div>
+
+            {/* Status & Priority */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -521,15 +651,44 @@ export default function TasksPage() {
                 </Select>
               </div>
             </div>
+
+            {/* ✅ NEW: Assigned To */}
+            <div className="space-y-2">
+              <Label htmlFor="assigned_to">
+                <User className="w-3 h-3 inline mr-1" />
+                Assign To
+              </Label>
+              <Select
+                value={form.assigned_to || 'unassigned'}
+                onValueChange={(v) =>
+                  setForm({ ...form, assigned_to: v === 'unassigned' ? '' : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">Unassigned</span>
+                  </SelectItem>
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name} ({m.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Due Date & Related Lead */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Due Date</Label>
+                <Label htmlFor="due_date">Due Date</Label>
                 <Input
+                  id="due_date"
                   type="date"
                   value={form.due_date}
-                  onChange={(e) =>
-                    setForm({ ...form, due_date: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, due_date: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -537,10 +696,7 @@ export default function TasksPage() {
                 <Select
                   value={form.related_lead_id || 'none'}
                   onValueChange={(v) =>
-                    setForm({
-                      ...form,
-                      related_lead_id: v === 'none' ? '' : v,
-                    })
+                    setForm({ ...form, related_lead_id: v === 'none' ? '' : v })
                   }
                 >
                   <SelectTrigger>
@@ -559,6 +715,75 @@ export default function TasksPage() {
                 </Select>
               </div>
             </div>
+
+            {/* ✅ NEW: Recurring Task */}
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4 text-muted-foreground" />
+                  <Label htmlFor="is_recurring" className="cursor-pointer">
+                    Recurring Task
+                  </Label>
+                </div>
+                <Switch
+                  id="is_recurring"
+                  checked={form.is_recurring}
+                  onCheckedChange={(checked) =>
+                    setForm({
+                      ...form,
+                      is_recurring: checked,
+                      recurrence_pattern: checked ? form.recurrence_pattern : '',
+                    })
+                  }
+                />
+              </div>
+
+              {form.is_recurring && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Repeat</Label>
+                      <Select
+                        value={form.recurrence_pattern}
+                        onValueChange={(v) =>
+                          setForm({ ...form, recurrence_pattern: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {recurrencePatterns.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">End Date</Label>
+                      <Input
+                        type="date"
+                        value={form.recurrence_end_date}
+                        onChange={(e) =>
+                          setForm({ ...form, recurrence_end_date: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 A new instance will be created automatically. 
+                    You can also run{' '}
+                    <code className="bg-background px-1 rounded">
+                      SELECT generate_recurring_tasks()
+                    </code>{' '}
+                    in SQL to generate manually.
+                  </p>
+                </>
+              )}
+            </div>
+
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -566,9 +791,7 @@ export default function TasksPage() {
                 </Button>
               </DialogClose>
               <Button type="submit" disabled={saving}>
-                {saving && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {editingId ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
@@ -576,7 +799,7 @@ export default function TasksPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Delete Confirmation */}
+      {/* Delete Confirmation */}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
@@ -587,8 +810,12 @@ export default function TasksPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Task?</AlertDialogTitle>
             <AlertDialogDescription>
-              Task <strong>{deleteTarget?.title}</strong> akan
-              dipindahkan ke recycle bin.
+              Task <strong>{deleteTarget?.title}</strong> akan dipindahkan ke recycle bin.
+              {deleteTarget?.is_recurring && (
+                <span className="block mt-2 text-amber-600">
+                  ⚠️ Ini task berulang. Hanya instance ini yang dihapus.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -598,9 +825,7 @@ export default function TasksPage() {
               disabled={deleting}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {deleting && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Ya, Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
