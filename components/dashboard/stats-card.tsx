@@ -1,83 +1,106 @@
+// components/dashboard/stats-card.tsx - COMPACT VERSION
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatCurrency } from '@/lib/currency'; // ← TAMBAH
 
-type StatsCardProps = {
+type AccentColor = 'primary' | 'success' | 'warning' | 'destructive' | 'info';
+
+interface StatsCardProps {
   label: string;
-  value: string | number;
+  value: number | string;
   icon: LucideIcon;
+  accent?: AccentColor;
   trend?: string;
   trendUp?: boolean;
-  accent?: 'primary' | 'success' | 'warning' | 'destructive';
   isCurrency?: boolean;
-};
+  className?: string;
+}
 
-const accentClasses = {
-  primary: 'from-primary/10 to-primary/5 text-primary border-primary/20',
-  success: 'from-success/10 to-success/5 text-success border-success/20',
-  warning: 'from-warning/10 to-warning/5 text-warning border-warning/20',
-  destructive: 'from-destructive/10 to-destructive/5 text-destructive border-destructive/20',
+const accentClasses: Record<AccentColor, { bg: string; text: string; iconBg: string }> = {
+  primary: {
+    bg: 'bg-primary/5',
+    text: 'text-primary',
+    iconBg: 'bg-primary/10',
+  },
+  success: {
+    bg: 'bg-green-50 dark:bg-green-950/20',
+    text: 'text-green-600 dark:text-green-400',
+    iconBg: 'bg-green-100 dark:bg-green-900/30',
+  },
+  warning: {
+    bg: 'bg-amber-50 dark:bg-amber-950/20',
+    text: 'text-amber-600 dark:text-amber-400',
+    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  destructive: {
+    bg: 'bg-red-50 dark:bg-red-950/20',
+    text: 'text-red-600 dark:text-red-400',
+    iconBg: 'bg-red-100 dark:bg-red-900/30',
+  },
+  info: {
+    bg: 'bg-blue-50 dark:bg-blue-950/20',
+    text: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+  },
 };
 
 export function StatsCard({
   label,
   value,
   icon: Icon,
+  accent = 'primary',
   trend,
   trendUp,
-  accent = 'primary',
-  isCurrency = false,
+  isCurrency,
+  className,
 }: StatsCardProps) {
-  // ← TAMBAH: format value jika isCurrency
-  const displayValue = isCurrency ? formatCurrency(value as number) : value;
+  const accent_ = accentClasses[accent];
 
   return (
-    <Card className="relative group hover:shadow-lg hover:border-primary/20 transition-all duration-300 border bg-gradient-to-br overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-      <CardContent className="p-5 sm:p-6 relative">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1 min-w-0">
-            <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wide">
+    <Card className={cn('overflow-hidden', className)}>
+      <CardContent className="p-4"> {/* ⬅️ Reduced from p-5 to p-4 */}
+        <div className="flex items-start justify-between gap-3">
+          {/* Label & Value */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {label}
             </p>
-            {/* ← GANTI value → displayValue */}
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
-              {displayValue}
-            </h3>
-
+            <p className="text-2xl font-bold mt-1 truncate"> {/* ⬅️ Reduced from text-3xl */}
+              {isCurrency && typeof value === 'number'
+                ? formatCompactCurrency(value)
+                : value}
+            </p>
             {trend && (
-              <div className="flex items-center gap-1 pt-1">
-                {trendUp ? (
-                  <TrendingUp className="w-4 h-4 text-success shrink-0" />
-                ) : (
-                  <TrendingDown className="w-4 h-4 text-destructive shrink-0" />
-                )}
-                <p
-                  className={cn(
-                    'text-xs font-semibold truncate',
-                    trendUp ? 'text-success' : 'text-destructive'
-                  )}
-                >
-                  {trend}
-                </p>
-              </div>
+              <p className={cn(
+                'text-xs mt-1 flex items-center gap-1',
+                trendUp ? 'text-green-600' : 'text-muted-foreground'
+              )}>
+                {trendUp && <span>↑</span>}
+                {trend}
+              </p>
             )}
           </div>
 
-          <div
-            className={cn(
-              'flex items-center justify-center w-12 h-12 rounded-xl font-semibold shadow-md group-hover:shadow-lg transition-all group-hover:scale-110 bg-gradient-to-br shrink-0 ml-3',
-              accentClasses[accent]
-            )}
-          >
-            <Icon className="w-6 h-6" />
+          {/* Icon */}
+          <div className={cn(
+            'w-9 h-9 rounded-lg flex items-center justify-center shrink-0', // ⬅️ Reduced from w-10 h-10
+            accent_.iconBg
+          )}>
+            <Icon className={cn('w-4 h-4', accent_.text)} />
           </div>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+// Helper untuk compact currency
+function formatCompactCurrency(value: number): string {
+  if (value === 0) return 'Rp 0';
+  if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
+  if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(0)}jt`;
+  if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
+  return `Rp ${value}`;
 }
